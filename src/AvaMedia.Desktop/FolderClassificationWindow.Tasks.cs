@@ -98,7 +98,6 @@ public sealed partial class FolderClassificationWindow
         var pendingSnapshot = !_loadingTask && !_refreshingSnapshot && job.ClassificationSnapshot is { } current && !ReferenceEquals(current, _seenSnapshot);
         var busy = _loadingTask || _refreshingSnapshot || pendingSnapshot || TaskActive;
         if (_busy != busy && !_writing && _operation is null) SetBusy(busy);
-        _activity.Update(job.Activity is { } activity ? MediaPrivacy.Filter(activity, _settings.EnableNsfwContent) : null);
         _status.Text = TaskActive ? Localization.Join(" · ", [Localization.Text(job.Status), Localization.Text("关闭窗口后任务继续运行")])
             : Localization.Join(" · ", [Localization.Text(job.Status), job.Error]);
         _stop.IsVisible = job.State is JobState.Waiting or JobState.Running or JobState.Paused;

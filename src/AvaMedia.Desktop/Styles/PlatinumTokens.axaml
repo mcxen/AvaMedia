@@ -20,7 +20,6 @@
   <x:Double x:Key="AcStatusFont">12</x:Double>
   <x:Double x:Key="AcTooltipFont">12</x:Double>
   <x:Double x:Key="AcSubStepFont">12</x:Double>
-  <x:Double x:Key="AcStageNumberFont">12</x:Double>
   <x:Double x:Key="AcCountFont">24</x:Double>
   <x:Double x:Key="AcButtonHeight">22</x:Double>
   <x:Double x:Key="AcShellButtonHeight">26</x:Double>

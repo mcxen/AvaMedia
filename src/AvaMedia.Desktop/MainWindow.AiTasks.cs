@@ -96,27 +96,8 @@ public partial class MainWindow
         if (job.Options.VlRename is not null) return OpenExclusiveRenamerAsync(this, job);
         if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { Controls.WindowChrome.Present(existing); return Task.CompletedTask; }
         if (UsesMultiStageWindow(job)) { ShowMultiStageWindow(job); return Task.CompletedTask; }
-        var rotation = job.FeatureId == "rotate" && job.Inputs.Length == 1 ? new RotationTaskView(Engine, job) : null;
-        var window = new AiTaskWindow(job, () => rotation?.IsReview == true ? rotation.CanExport : HasAiResult(job),
-            rotation?.IsReview == true ? () => SubmitReviewedRotationAsync(rotation) : () => ShowAiResultAsync(job),
-            () => { _queue.Stop(job); Save(); Refresh(); }, () => RequestTaskRunAsync(job),
-            () => job.State == JobState.Waiting ? CanStartTask(job) : CanContinueTask(job) || CanRequeueTask(job),
-            () => { _ = Configure(Catalog.Find(job.FeatureId)); }, rotation, () => PauseTask(job), () => AiQueueInfo.Summarize(_jobs), Engine);
-        _aiTaskWindows[job.Id] = window;
-        window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
-        Controls.WindowChrome.ShowIndependent(window);
-        return Task.CompletedTask;
-    }
-
-    private Task SubmitReviewedRotationAsync(RotationTaskView review)
-    {
-        if (_closing) return Task.CompletedTask;
-        var request = review.CreateRequest();
-        var reserved = _jobs.Select(job => job.Output).ToArray();
-        var jobs = BatchRotate.CreateJobs(request, reserved);
-        OutputPreferences.Apply(jobs, _settings, reserved, request.OutputToSource, request.SettingName);
-        AddToolJobs(jobs, review.StartImmediately);
-        return Task.CompletedTask;
+        // Other AI conversions (voice/audio enhance, delogo, plain rotation) are ordinary queue jobs: the task details window covers them.
+        return ShowTaskDetailsAsync(job);
     }
 
     private async void ViewAiTaskClick(object? sender, Avalonia.Interactivity.RoutedEventArgs args)

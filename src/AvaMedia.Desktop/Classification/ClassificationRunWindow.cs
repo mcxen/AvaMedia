@@ -11,15 +11,17 @@ using static AvaMedia.Desktop.Classification.ClassifyUi;
 
 namespace AvaMedia.Desktop.Classification;
 
-/// <summary>Detail window of one AI 媒体整理 task: live pipeline while running, before/after review when finished.</summary>
+/// <summary>Result window of one AI 媒体整理 task: before/after review of a finished run. Live progress is shown by the multi-stage task window.</summary>
 public sealed partial class ClassificationRunWindow : Window
 {
     private readonly Job _job;
-    private readonly Action<Job>? _pause, _stop;
     private readonly Action<Job, string> _openAction;
     private readonly FolderClassificationProgress _progress = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly Grid _body = new();
+    private readonly TextBlock _percent = T("", 26, FontWeight.Bold, raw: true);
+    private readonly EmptyState _active = new() { Text = L("任务进行中，进度见任务窗口") };
+    private Control? _resultView;
     private readonly TextBlock _title = T("", 13, FontWeight.Bold, raw: true), _subtitle = T("", 12, brush: Muted, raw: true);
     private readonly StackPanel _headerActions = new() { Orientation = Orientation.Horizontal, [!StackPanel.SpacingProperty] = Resource("AcGap"), VerticalAlignment = VerticalAlignment.Center };
     private int _dirty = 1, _computing;
@@ -28,10 +30,10 @@ public sealed partial class ClassificationRunWindow : Window
     private bool _closed;
     public static int Applied, Computed; public static double LastComputeMs, MaxComputeMs, MaxApplyMs;
 
-    public ClassificationRunWindow(Job job, Action<Job>? pause, Action<Job>? stop, Action<Job, string> openAction)
+    public ClassificationRunWindow(Job job, Action<Job, string> openAction)
     {
         ApplyToolStyles(this);
-        _job = job; _pause = pause; _stop = stop; _openAction = openAction;
+        _job = job; _openAction = openAction;
         Title = L("AI 媒体整理") + " · " + job.Name; Width = 1280; Height = 800; MinWidth = 1040; MinHeight = 640;
         Bind(BackgroundProperty, Resource(Page)); WindowStartupLocation = WindowStartupLocation.CenterOwner; WindowArtwork.SetKind(this, "gear");
         var header = new Grid { ColumnDefinitions = new("*,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcGap"), Height = 48, Margin = new(0, 0, 16, 0) };
@@ -54,7 +56,7 @@ public sealed partial class ClassificationRunWindow : Window
             _timer.Start(); Pump();
         };
         if (Environment.GetEnvironmentVariable("AVAMEDIA_UI_LAG_LOG") is { Length: > 0 } lagLog) StartLagProbe(lagLog);
-        Closed += (_, _) => { _closed = true; _timer.Stop(); job.PropertyChanged -= JobChanged; if (Volatile.Read(ref _computing) == 0) DisposeRetiredPreviews(); };
+        Closed += (_, _) => { _closed = true; _timer.Stop(); job.PropertyChanged -= JobChanged; };
     }
 
     internal Job Job => _job;
@@ -83,14 +85,14 @@ public sealed partial class ClassificationRunWindow : Window
         _ = Task.Run(() =>
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            try { _progress.Update(_job); ProjectRun(); }
+            try { _progress.Update(_job); }
             catch (Exception) { }
             watch.Stop(); LastComputeMs = watch.Elapsed.TotalMilliseconds; MaxComputeMs = Math.Max(MaxComputeMs, LastComputeMs);
             Interlocked.Increment(ref Computed);
             Dispatcher.UIThread.Post(() =>
             {
                 try { if (!_closed) Apply(); }
-                finally { DisposeRetiredPreviews(); _lastApplied = System.Diagnostics.Stopwatch.GetTimestamp(); Interlocked.Exchange(ref _computing, 0); }
+                finally { _lastApplied = System.Diagnostics.Stopwatch.GetTimestamp(); Interlocked.Exchange(ref _computing, 0); }
             }, DispatcherPriority.Background);
         });
     }
@@ -111,7 +113,7 @@ public sealed partial class ClassificationRunWindow : Window
         if (_resultMode != result)
         {
             _resultMode = result; _body.Children.Clear();
-            _body.Children.Add(result ? _resultView ??= BuildResult() : _runView ??= BuildRun());
+            _body.Children.Add(result ? _resultView ??= BuildResult() : _active);
         }
         _title.Text = L("AI 媒体整理") + " · " + _job.Name;
         if (result)
@@ -119,11 +121,7 @@ public sealed partial class ClassificationRunWindow : Window
             _subtitle.Text = $"{L("用时")} {Clock(Elapsed())} · {L("完成")} {_progress.Completed} {L("个")}，{L("待确认")} {_progress.Pending} {L("个")}，{L("失败")} {_progress.Failed} {L("个")}";
             RenderResult();
         }
-        else
-        {
-            _subtitle.Text = L("从任务列表「查看任务」打开 · 关闭窗口后任务继续运行");
-            RenderRun();
-        }
+        else _subtitle.Text = "";
         RenderHeaderActions(result);
     }
 
@@ -151,12 +149,6 @@ public sealed partial class ClassificationRunWindow : Window
                 _headerActions.Children.Add(Segmented(rules.Select(rule => rule.Name).ToArray(), Math.Max(0, Array.FindIndex(rules, r => r.Id == _resultRule)),
                     index => { _resultRule = rules[index].Id; _resultKey = null; RenderResult(); }));
             return;
-        }
-        if (_pause is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
-            _headerActions.Children.Add(Pill(_job.State == JobState.Paused ? "继续任务" : "临时停止", _job.State == JobState.Paused ? "play" : "pause", click: () => _pause(_job)));
-        if (_stop is not null && _job.State is JobState.Waiting or JobState.Running or JobState.Paused)
-        {
-            _headerActions.Children.Add(Pill("结束任务", "square", "danger", () => _stop(_job)));
         }
     }
 }

@@ -18,7 +18,13 @@ public sealed partial class RenameWindow
     private readonly NumericUpDown _semanticThreshold = SemanticNumber(0, 1, .55m, .05m);
     private readonly NumericUpDown _semanticMargin = SemanticNumber(0, 1, .03m, .01m);
     private readonly StackPanel _semanticPanel = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap"), IsVisible = false };
-    private readonly Controls.AiActivityView _semanticActivity = new();
+    /// <summary>Current semantic step (stage · model) under the footer; the status line carries counts and results.</summary>
+    private readonly TextBlock _semanticStage = new() { Classes = { "caption" }, IsVisible = false, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+    private void ShowSemanticStage(AiActivity? activity)
+    {
+        var text = activity is null ? "" : Localization.Join(" · ", new[] { activity.Stage, activity.Model }.Where(part => part.Length > 0));
+        _semanticStage.Text = text; _semanticStage.IsVisible = text.Length > 0;
+    }
     private readonly StackPanel _semanticParameters = new() { [!StackPanel.SpacingProperty] = Resource("AcRowGap"), IsVisible = false };
     private readonly Dictionary<string, MediaKeywordResult> _semanticResults = new(BatchRename.PathComparer);
     private readonly Dictionary<string, string> _semanticDetails = new(BatchRename.PathComparer);
@@ -124,14 +130,14 @@ public sealed partial class RenameWindow
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(_semanticLifetime.Token);
         _operation = operation; SetBusy(true); _stop.IsEnabled = true;
         _progressText.Text = Localization.Text("加载嵌入模型…");
-        _semanticActivity.Update(new("加载嵌入模型", "Gemma · 媒体嵌入", DateTime.UtcNow, DateTime.UtcNow));
+        ShowSemanticStage(new("加载嵌入模型", "Gemma · 媒体嵌入", DateTime.UtcNow, DateTime.UtcNow));
         var matched = 0; var failed = 0;
         try
         {
             if(download)
                 await SemanticModelConsent.DownloadAsync(new Progress<ModelDownloadProgress>(value=>{if(!_closed)_progressText.Text=Localization.Text("下载语义模型")+$" · {value.Percent:0}%";}),operation.Token);
             new Storage().SaveToolOptions("semantic-rename",new SemanticPreferences(_keywords.Text??"",options));
-            var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) _semanticActivity.Update(activity); });
+            var modelProgress = new Progress<AiActivity>(activity => { if (!_closed && _operation == operation) ShowSemanticStage(activity); });
             await using var matcher = await MediaKeywordMatcher.CreateAsync(_engine, keywords, ct: operation.Token, progress: modelProgress);
             for (var index = 0; index < selected.Length; index++)
             {
@@ -141,7 +147,7 @@ public sealed partial class RenameWindow
                 var progress = new Progress<MediaKeywordProgress>(value =>
                 {
                     if (_closed || _operation != operation || finished) return;
-                    if (value.Activity is { } activity) _semanticActivity.Update(activity);
+                    if (value.Activity is { } activity) ShowSemanticStage(activity);
                     entry.Status = Localization.Text(value.Activity?.Stage ?? "匹配中") + (value.Activity?.Total > 0 ? $" {value.Activity.Current:0}/{value.Activity.Total:0}" : "");
                     Localization.SetText(_progressText, $"{entry.Name} · {current + 1}/{selected.Length} 个文件");
                 });
@@ -173,10 +179,10 @@ public sealed partial class RenameWindow
             InvalidatePlan();
             if (matched > 0) await PreviewRename();
             Localization.SetText(_progressText, $"匹配完成：已勾选 {matched} 个，待确认 {selected.Length - matched - failed} 个，失败 {failed} 个。");
-            _semanticActivity.Finish(AiActivityState.Completed, "关键词匹配完成");
+            ShowSemanticStage(null);
         }
-        catch (OperationCanceledException) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Cancelled, "已停止"); _progressText.Text = Localization.Text("语义匹配已停止，已完成结果已保留。"); } }
-        catch (Exception error) { if (!_closed) { _semanticActivity.Finish(AiActivityState.Failed, "匹配失败"); await ShowErrorAsync("语义匹配失败", error); } }
+        catch (OperationCanceledException) { if (!_closed) { ShowSemanticStage(null); _progressText.Text = Localization.Text("语义匹配已停止，已完成结果已保留。"); } }
+        catch (Exception error) { if (!_closed) { ShowSemanticStage(null); await ShowErrorAsync("语义匹配失败", error); } }
         finally
         {
             _operation = null;

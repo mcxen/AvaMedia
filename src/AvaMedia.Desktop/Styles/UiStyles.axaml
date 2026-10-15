@@ -12,7 +12,6 @@
           <SolidColorBrush x:Key="UiClassificationPrimaryText" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiFill" Color="#F0F0F3"/>
           <SolidColorBrush x:Key="UiSpeechStepSurface" Color="#F1F4FA"/>
-          <SolidColorBrush x:Key="UiSpeechBackendSurface" Color="#1F34C759"/>
           <SolidColorBrush x:Key="UiClassificationPage" Color="#FAFAFC"/>
           <SolidColorBrush x:Key="UiAccentSoft" Color="#EAF3FF"/>
           <SolidColorBrush x:Key="UiAccentDescription" Color="#DDEBFF"/>
@@ -96,7 +95,6 @@
           <SolidColorBrush x:Key="UiClassificationPrimaryText" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="UiFill" Color="#1AFFFFFF"/>
           <SolidColorBrush x:Key="UiSpeechStepSurface" Color="#2C2C2E"/>
-          <SolidColorBrush x:Key="UiSpeechBackendSurface" Color="#2430D158"/>
           <SolidColorBrush x:Key="UiClassificationPage" Color="#252525"/>
           <SolidColorBrush x:Key="UiAccentSoft" Color="#2E0A84FF"/>
           <SolidColorBrush x:Key="UiAccentDescription" Color="#DDEBFF"/>

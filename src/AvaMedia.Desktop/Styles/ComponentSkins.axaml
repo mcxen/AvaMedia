@@ -11,7 +11,6 @@
 <CornerRadius x:Key="AcSegmentItemRadius">0</CornerRadius>
 <CornerRadius x:Key="AcColorBarRadius">0</CornerRadius>
 <CornerRadius x:Key="AcPreviewRadius">0</CornerRadius>
-<CornerRadius x:Key="AcStageRadius">0</CornerRadius>
 <CornerRadius x:Key="AcListRadius">0</CornerRadius>
 <CornerRadius x:Key="AcGroupRadius">0</CornerRadius>
 <SolidColorBrush x:Key="AcCardFace" Color="#FFFFFF"/>
@@ -29,7 +28,6 @@
 <SolidColorBrush x:Key="AcWaitingFill" Color="#E3E3E3"/>
 <SolidColorBrush x:Key="AcPreviewFill" Color="#D8D8D8"/>
 <SolidColorBrush x:Key="UiSpeechStepSurface" Color="#CCCCCC"/>
-<SolidColorBrush x:Key="UiSpeechBackendSurface" Color="#E5EBDD"/>
 </ResourceDictionary>
 <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}">
 <x:Boolean x:Key="AcMaterialEnabled">False</x:Boolean>
@@ -43,7 +41,6 @@
 <CornerRadius x:Key="AcSegmentItemRadius">3</CornerRadius>
 <CornerRadius x:Key="AcColorBarRadius">3</CornerRadius>
 <CornerRadius x:Key="AcPreviewRadius">3</CornerRadius>
-<CornerRadius x:Key="AcStageRadius">3</CornerRadius>
 <CornerRadius x:Key="AcListRadius">3</CornerRadius>
 <CornerRadius x:Key="AcGroupRadius">3</CornerRadius>
 <SolidColorBrush x:Key="AcCardFace" Color="#FFFFFF"/>
@@ -61,6 +58,5 @@
 <SolidColorBrush x:Key="AcWaitingFill" Color="#E3E3E3"/>
 <SolidColorBrush x:Key="AcPreviewFill" Color="#ECE9D8"/>
 <SolidColorBrush x:Key="UiSpeechStepSurface" Color="#ECE9D8"/>
-<SolidColorBrush x:Key="UiSpeechBackendSurface" Color="#E5EBDD"/>
 </ResourceDictionary>
 </ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources></Styles>

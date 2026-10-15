@@ -9,7 +9,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.LogicalTree;
 using AvaMedia.Core;
-using AvaMedia.Desktop.AiProgress;
+using AvaMedia.Desktop.Speech;
 
 namespace AvaMedia.Desktop;
 
@@ -90,22 +90,28 @@ public sealed partial class SpeechToolsWindow
         Grid.SetColumn(sourceFolder, 2); folder.Children.Add(sourceFolder); fields.Children.Add(Field("保存位置", folder));
         var fieldCard = Ui.ComponentCard(fields); settings.Children.Add(fieldCard);
         var plan = new StackPanel { Spacing = 8 }; plan.Children.Add(SubmissionHeading("运行时将依次"));
+        // Plain plan text: run progress is shown by the multi-stage task window, not here.
         var steps = new Grid { ColumnDefinitions = new("*,*,*,*"), ColumnSpacing = 8 };
-        var stages = new List<AvaMedia.Controls.StageIndicator>();
+        var stages = new List<(TextBlock Title, TextBlock Detail)>();
         void UpdateSize()
         {
             var model = _model.SelectedIndex switch { 1 => SpeechModel.Tiny, 2 => SpeechModel.Small, _ => SpeechModel.Base };
             var download = Localization.Format($"未安装时下载 {SpeechModelInstaller.Artifact(model).Size / 1_000_000d:0} MB");
             for (var i = 0; i < stages.Count; i++)
-                stages[i].Update(i, Localization.Text(SpeechUi.Stages[i]), i == 1 ? download
-                    : Localization.Text(i switch { 0 => "检查音频与时长", 2 => "每 5 分钟一段", _ => "字幕草稿" }), "", "waiting");
+            {
+                stages[i].Title.Text = $"{i + 1}  " + Localization.Text(SpeechUi.Stages[i]);
+                stages[i].Detail.Text = i == 1 ? download : Localization.Text(i switch { 0 => "检查音频与时长", 2 => "每 5 分钟一段", _ => "字幕草稿" });
+            }
         }
         _model.SelectionChanged += (_, _) => UpdateSize(); Localization.Changed += UpdatePlanLanguage;
         Closed += (_, _) => Localization.Changed -= UpdatePlanLanguage;
         void UpdatePlanLanguage(object? sender, EventArgs args) => UpdateSize();
         for (var i = 0; i < 4; i++)
         {
-            var stage = new AvaMedia.Controls.StageIndicator(); stages.Add(stage);
+            var title = SpeechUi.Text("", false, 13); title.FontWeight = FontWeight.Medium;
+            var detail = SpeechUi.Text("", true, 12); detail.TextWrapping = TextWrapping.Wrap;
+            Localization.SetIsUserText(title, true); Localization.SetIsUserText(detail, true);
+            var stage = new StackPanel { Spacing = 2 }; stage.Children.Add(title); stage.Children.Add(detail); stages.Add((title, detail));
             Grid.SetColumn(stage, i); steps.Children.Add(stage);
         }
         UpdateSize();

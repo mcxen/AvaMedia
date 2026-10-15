@@ -14,7 +14,6 @@ public sealed partial class PersonClipWindow
     private readonly ListBox _retained = new() { MaxHeight=260, BorderThickness=new(0) };
     private readonly TextBlock _resultSummary = Ui.Text("尚未分析", "caption");
     private readonly AvaMedia.Controls.EmptyState _resultEmpty = new() { Text = Localization.Text("等待检测结果") };
-    private readonly AiActivityView _activity = new() { Compact = true };
     private bool _busy;
     private bool _handsChanged;
     private Entry? _retainedEntry;

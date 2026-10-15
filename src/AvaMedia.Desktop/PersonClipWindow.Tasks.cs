@@ -84,7 +84,7 @@ public sealed partial class PersonClipWindow
             entry.Status = job.Status; entry.Error = job.Error;
         }
         var selected = Selected?.Task;
-        if (selected is not null) { _activity.Update(selected.Activity); _status.Text = selected.Status; }
+        if (selected is not null) _status.Text = selected.Status;
         var jobs = _entries.Select(entry => entry.Task).OfType<Job>().Where(job => job.State is JobState.Waiting or JobState.Running or JobState.Paused).ToArray();
         _pause.IsVisible = _pauseTask is not null && _resumeTask is not null && jobs.Length > 0;
         _pause.Content = Localization.Text(jobs.Length > 0 && jobs.All(job => job.State == JobState.Paused) ? "继续任务" : "临时停止");

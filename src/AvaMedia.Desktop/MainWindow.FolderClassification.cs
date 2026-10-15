@@ -13,7 +13,7 @@ public partial class MainWindow
         if (_closing) return Task.CompletedTask;
         var submit = new Classification.ClassificationSubmitWindow(Engine, _settings, files, job =>
         {
-            AddToolJobs([job], startImmediately: true); OpenClassificationRun(job);
+            AddToolJobs([job], startImmediately: true); _ = ShowAiTaskAsync(job);
         }, async owner =>
         {
             await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
@@ -28,7 +28,7 @@ public partial class MainWindow
     {
         if (_closing) return;
         if (_classificationRuns.TryGetValue(job.Id, out var existing)) { Controls.WindowChrome.Present(existing); return; }
-        var run = new Classification.ClassificationRunWindow(job, PauseTask, task => { _queue.Stop(task); Save(); Refresh(); },
+        var run = new Classification.ClassificationRunWindow(job,
             (task, action) => OpenClassificationWindow(task: task, action: action));
         _classificationRuns[job.Id] = run;
         run.Closed += (_, _) => _classificationRuns.Remove(job.Id);
@@ -90,5 +90,10 @@ public partial class MainWindow
     internal bool CanViewClassificationTask(Job job) => !_closing && _jobs.Contains(job)
         && job.FeatureId == "folder-classification" && job.Options.FolderClassification is not null;
     internal Task ShowClassificationTaskAsync(Job job)
-    { if (CanViewClassificationTask(job)) OpenClassificationRun(job); return Task.CompletedTask; }
+    {
+        if (!CanViewClassificationTask(job)) return Task.CompletedTask;
+        // Running classification is followed in the multi-stage window; the run window reviews finished results.
+        if (Active(job)) return ShowAiTaskAsync(job);
+        OpenClassificationRun(job); return Task.CompletedTask;
+    }
 }

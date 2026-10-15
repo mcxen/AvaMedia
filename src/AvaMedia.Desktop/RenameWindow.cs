@@ -189,7 +189,7 @@ public sealed partial class RenameWindow : Window
         _undo = Ui.Button("撤销上一次重命名", async () => await UndoRename()); _undo.IsEnabled = BatchRename.CanUndo(_journal);
         _rename = Ui.DialogButton("执行重命名", async () => await ApplyRename()); _rename.Classes.Add("primary"); _rename.IsEnabled = false;
         foreach (var (column, button) in new[] { (0, _undo), (2, _stop), (3, _rename) }) { Grid.SetColumn(button, column); footer.Children.Add(button); }
-        var feedback = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; feedback.Children.Add(_semanticActivity); feedback.Children.Add(footer); Grid.SetRow(feedback, 2); root.Children.Add(feedback);
+        var feedback = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") }; feedback.Children.Add(_semanticStage); feedback.Children.Add(footer); Grid.SetRow(feedback, 2); root.Children.Add(feedback);
         Content = root;
         _pattern.TextChanged += (_, _) => SyncSemanticTemplate();
         AddRule("新名称模板", new(RenameAction.Template) { Text = "{name}_{index}" });

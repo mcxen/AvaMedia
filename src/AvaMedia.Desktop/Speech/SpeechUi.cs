@@ -8,9 +8,8 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
-using System.Text.RegularExpressions;
 
-namespace AvaMedia.Desktop.AiProgress;
+namespace AvaMedia.Desktop.Speech;
 
 internal static class SpeechUi
 {
@@ -18,7 +17,6 @@ internal static class SpeechUi
     {
         // 通用控件和调色板由应用资源统一提供，不在窗口里覆写颜色与尺寸。
         window.Classes.Add("component-window");
-        window.Resources["SpeechStageHeight"] = 160d;
     }
 
     public static void PreserveChoiceFace(ToggleButton button)
@@ -90,14 +88,6 @@ internal static class SpeechUi
         else if (control.Parent is Decorator decorator) decorator.Child = null;
         else if (control.Parent is ContentControl content) content.Content = null;
         Grid.SetColumn(control, 0); Grid.SetRow(control, 0); Grid.SetColumnSpan(control, 1); Grid.SetRowSpan(control, 1);
-    }
-    public static string ActivityText(string value)
-    {
-        var segment = Regex.Match(value, @"^第 (\d+) / (\d+) 段$");
-        if (segment.Success) return Localization.Format($"第 {segment.Groups[1].Value} / {segment.Groups[2].Value} 段");
-        var voices = Regex.Match(value, @"^检测到 (\d+) 个语音区间$");
-        if (voices.Success) return Localization.Format($"检测到 {voices.Groups[1].Value} 个语音区间");
-        return string.Join(" · ", value.Split(" · ").Select(Localization.Text));
     }
     public static string Model(AvaMedia.Core.SpeechModel model) => Localization.Text(model switch
     { AvaMedia.Core.SpeechModel.Tiny => "Whisper · 轻量", AvaMedia.Core.SpeechModel.Small => "Whisper · Small", _ => "Whisper · 标准" });

@@ -17,7 +17,7 @@ public sealed partial class FolderClassificationWindow
     private void PrivacyChanged(object? sender, EventArgs args)
     {
         if (_closed) return;
-        _operation?.Cancel(); _activity.Update(null); _status.Text = Localization.Text("隐私设置已更新");
+        _operation?.Cancel(); _status.Text = Localization.Text("隐私设置已更新");
         if (!_settings.EnableNsfwContent)
         {
             foreach (var (path, result) in _results) _hiddenPrivateResults[path] = result;

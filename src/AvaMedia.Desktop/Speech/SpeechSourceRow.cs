@@ -5,7 +5,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using AvaMedia.Core;
 
-namespace AvaMedia.Desktop.AiProgress;
+namespace AvaMedia.Desktop.Speech;
 
 // Only realized list rows probe media; detaching a virtualized row cancels its work.
 internal sealed class SpeechSourceRow : Grid

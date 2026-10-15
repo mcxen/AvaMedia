@@ -584,12 +584,6 @@ await Ui.MessageDialog(this, "还有视频未剪辑", "请先剪辑以下视频�
 <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
 ```
 
-阶段卡片按状态取资源键 `src/AvaMedia.Desktop/AiProgress/SpeechStageCard.cs`：
-
-```csharp
-: state == JobState.Failed && current ? "UiDanger" : state == JobState.Paused && current ? "UiWarning" : "UiAccent";
-```
-
 ### 7.8 复选框、开关与图标
 
 - 复选框：14 px 蓝色圆角方块；开关：绿色 iOS 样式。
@@ -632,7 +626,7 @@ var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, H
 | 04 数值步进器 | `AcNumericUpDown/AcButtonSpinner`；`NumericUpDown.ac` | 字段高 24、默认宽 72、圆角 6、右对齐数字 13；独立步进区 15×22、圆角 5、两段各 11；间距 4；单位字 12；错误 1px 红边与 3px 外晕、消息字 11 | `AcField/AcHairline/AcPopupFace/AcFillPressed`；`UiNumericFont` 数字；`AcErrorShadow/UiDanger` |
 | 05 文本框 | `AcTextBox`；`TextBox.ac`、`.multiline`、`.error` | 单行高 24、圆角 6、内边距 8,0、字 13；多行最小高 76、内边距 8,6、行高 1.45；描边 0.5；错误消息间距 6；禁用不透明度 0.45 | `AcField/AcHairline/AcFieldHoverBorder/AcTextTertiary`；聚焦 `UiAccent/AcFocusShadow`；错误 `UiDanger/AcErrorShadow` |
 | 06 滑块 | `AcSlider`；`Slider.ac`、`.ticks`；`RangeSlider` | 横向控件高 22，垂直方向交换轨道与刻度的尺寸；轨道 3、圆角 1.5、白圆旋钮 18；刻度 1.5×5、刻度旋钮宽 14 尖底；范围双旋钮；按下放大 1.08、焦点环、禁用 0.4 | `UiTrack/UiAccent/AcKnob/AcKnobShadow/AcFocusShadow/AcTextTertiary` |
-| 07 进度与阶段 | `AcProgressBar`；`ProgressBar.ac.paused/failed`；`ProgressRing/LoadingSpinner/StageIndicator/SubStepRow/StatusGlyph` | 条高 4、圆角 2；不确定滑块 30%、1.2s 往返；旋转器 14/22；进度环 44、线宽 3.5；阶段高 64、圆角 10、内边距 12,10、序号 18、字 11 半粗、箭头区 24；当前边 1.5；计时字 11；子步骤图标 14、间距 9、上下 7、标题 13、说明 11 | `UiTrack/UiAccent/UiSuccessFill/UiWarning/UiDanger/UiAccentSoft`；`AcStageRadius/AcStagePadding/AcFocusThickness/AcStageLine/AcStageLineBrush`；计数等宽；分类进度专用非当前阶段无边框 |
+| 07 进度与阶段 | `AcProgressBar`；`ProgressBar.ac.paused/failed`；`ProgressRing/LoadingSpinner/StatusGlyph`；多阶段任务用 `StageList`（见 10.16） | 条高 4、圆角 2；不确定滑块 30%、1.2s 往返；旋转器 14/22；进度环 44、线宽 3.5；状态图标 14/16 | `UiTrack/UiAccent/UiSuccessFill/UiWarning/UiDanger/UiAccentSoft`；计数等宽 |
 | 08 分段与标签栏 | `SegmentedControl`、`.tabs`；`AcSegmentItem` | 高 28、外圆角 8、内边距 2、段圆角 6、内边距 14,0、字 13 Medium；段间 0.5 分隔（选中相邻隐藏）；标签字 13、间距 22、底间距 9、指示条高 2 | `UiFill/AcSegmentFace/AcSegmentShadow/AcHairline/UiAccent`；深色选中 #636366；悬停、焦点、禁用 |
 | 09 状态胶囊与徽标 | `StatusPill/CountBadge`；`.ac-status`、`.ac-badge`、`.dot` | 胶囊高 20、圆角 10、内边距 8,0、字 12 Medium、状态点 6；徽标高/最小宽 18、圆角 9、内边距 5,0、字 11 半粗等宽；通知点 8；叠放外边 1.5 | `AcRunningFill/AcSuccessFill/AcWarningFill/AcDangerFill/AcWaitingFill`，对应色 12–14%；文字 `UiAccent/UiSuccess/AcWarningText/UiDanger/UiTextSecondary` |
 | 10 卡片、设置分组、列表 | `Card/ListRow/SectionHeader`；`.ac-card/.ac-group/.ac-setting-row/.ac-list-row/.ac-section` | 卡片圆角 12、内边距 16、内部/卡片间距 12；标题 13 半粗、描述 12、下间距 8；设置分组圆角 10、行最小高 40、内边距 12,0、分隔 0.5 左缩 12；列表高 56/36、圆角 8、内边距 10,0、间距 8、缩略图 40/圆角 6、角标高 16、数值 20 Bold 右对齐 | `UiSurface/AcCardFace/AcCardShadow/AcHairline/UiFill/AcSelection`；活动选择 `UiAccent/UiAccentText`；常态、悬停、非活动选择、活动选择、禁用 |
@@ -644,11 +638,10 @@ var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, H
 #### 7.9.2 进度与阶段
 
 - 确定和不确定进度均为 4px 条形。不确定条为 1.2s 往返滑块，行内禁止用环形替代条形；百分比放在标题或进度右侧，使用等宽数字，不叠在进度条上。旋转器为 0.8s 周期；减少动态效果由继承属性 `ComponentMotion.Reduced` 停止旋转与往返，保留静态进度。
-- 步骤横向等宽，均高 64，说明最多两行省略并提供完整 tooltip；步骤间 12px 灰色箭头居中。右上计时、计数使用 `UiNumericFont` 和 `tnum`。
-- 分类进度窗口只在标题显示百分比，阶段卡片下不添加独立进度条。子步骤的进行中弧形仅表示该子步骤活动。
-- 视频总结任务窗口默认 960×700、最小 760×520；阶段进度占满摘要与底部操作之间的剩余高度，随窗口拉伸，超出内容在进度区内滚动，不使用固定高度的小视口或外层嵌套滚动。长视频分段进度保留独立的受限列表。
+- 计时、计数使用 `UiNumericFont` 和 `tnum`。
+- AI 任务（保留有人片段、自动旋转、自动字幕、视频总结、自动标签分类、自动媒体整理）的进度只在多阶段任务窗口（10.16）中显示，旧的横向阶段卡片 / 子步骤行 / 小圆点活动流（`StageIndicator`、`SubStepRow`、`AiActivityView`、`AiActivityFlowView`、`AiTaskWindow`）已删除，不再复用。工具窗口只保留一行状态文字。
 
-参考代码：[StageIndicator.cs](src/AvaMedia.Controls/StageIndicator.cs)、[Surfaces.cs](src/AvaMedia.Controls/Surfaces.cs)、[SegmentedControl.cs](src/AvaMedia.Controls/SegmentedControl.cs)。
+参考代码：[StatusGlyph.cs](src/AvaMedia.Controls/StatusGlyph.cs)、[Surfaces.cs](src/AvaMedia.Controls/Surfaces.cs)、[SegmentedControl.cs](src/AvaMedia.Controls/SegmentedControl.cs)。
 
 ```xml
 <Button Classes="ac secondary" Content="临时停止" />
@@ -658,25 +651,22 @@ var button = new Button { Content = new LucideIcon { Kind = glyph, Width = 14, H
 
 ```csharp
 var card = new AvaMedia.Controls.Card { Child = content };
-var stage = new AvaMedia.Controls.StageIndicator();
-stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284", "running");
 ```
 
 #### 7.9.3 分类媒体内容与列表
 
 - 预览使用 `MediaPreviewSurface` 的统一投影；背景 `AcPreviewFill`、圆角 10，交互预览关闭氛围光。检测标签用白底胶囊、`UiText` 类别和 `UiAccent` 置信度文字，细投影；场景标签为半透明深色底与白字，不使用蓝色置信度块。
 - 真实候选画面等宽排列，缩略图圆角 6、当前项 2px 强调色框。服装主色比例条高 `AcColorBarHeight` 8、圆角 4，说明置于下方；实际采样色允许直接显示。归组理由浅蓝底，左侧强调色半粗标题，正文允许换行。
-- 文件流单行 8 个真实缩略图，已完成右下角 14px 绿色圆形勾，当前 2px 蓝框，等待透明度 `AcQueuedOpacity` 0.4；不补假数据。
 - 分组采用通用列表行：40px 叠放缩略图和右上蓝色 `+N` 胶囊、两行信息、右侧 20px 粗体计数与“个文件”。组数增加后在卡片内滚动，不能挤压末行。只有真实有变化才显示 `+N`。
 - 分类与字幕等任务共用 `JobRowView` 的行模板、状态胶囊和 4px 进度，入口按钮统一为“查看任务”。
 
-实现引用：[分类进度窗口](src/AvaMedia.Desktop/Classification/ClassificationRunWindow.Run.cs)、[文件流](src/AvaMedia.Desktop/Classification/ClassifyWall.cs)、[任务行](src/AvaMedia.Desktop/Controls/JobRowView.axaml)。参考 `/workspace/AvaMedia-sidebar-review/**/demo-*.png` 与对应 HTML，以及 `ai-progress/v2/progress-from-tasklist-desktop.html`；该 HTML 中说明文字依真实数据变化，不能为匹配截图伪造分析结果。
+实现引用：[分类结果窗口](src/AvaMedia.Desktop/Classification/ClassificationRunWindow.cs)（只显示完成后的分组结果；进行中的分类在多阶段任务窗口显示）、[任务行](src/AvaMedia.Desktop/Controls/JobRowView.axaml)。参考 `/workspace/AvaMedia-sidebar-review/**/demo-*.png` 与对应 HTML；说明文字依真实数据变化，不能为匹配截图伪造分析结果。
 
 #### 7.9.4 宿主接入与预览
 
-桌面通过 `Styles/ModernComponents.axaml` 将普通按钮、选择、输入、滑块、进度和滚动条接到通用主题；专用导航、传输与窗口按钮保留角色模板。`Ui` / `ClassifyUi` / `SpeechUi` 只负责选择角色和内容，字幕提交/进度卡片改用 `Card`。`Motion.cs` 向组件传递减少动态效果偏好；`ScrollVisibility` 在停止活动 1s 后淡出覆盖式滚动条。经典皮肤仍由 `Platinum*.axaml` / `WindowsXP*.axaml` 提供标准控件，`ComponentSkins.axaml` 覆盖组合表面和状态令牌。
+桌面通过 `Styles/ModernComponents.axaml` 将普通按钮、选择、输入、滑块、进度和滚动条接到通用主题；专用导航、传输与窗口按钮保留角色模板。`Ui` / `ClassifyUi` / `SpeechUi` 只负责选择角色和内容，字幕提交卡片改用 `Card`。`Motion.cs` 向组件传递减少动态效果偏好；`ScrollVisibility` 在停止活动 1s 后淡出覆盖式滚动条。经典皮肤仍由 `Platinum*.axaml` / `WindowsXP*.axaml` 提供标准控件，`ComponentSkins.axaml` 覆盖组合表面和状态令牌。
 
-`tools/AvaMedia.AiProgressCapture --gallery-view` 打开可操作、可切换浅深色的 12 类组件预览；`--gallery` 截取所有区块。截图使用 zh-CN、DISPLAY=:11、AVAMEDIA_CHROME=mac、XDG_DATA_HOME=/tmp/avademo/data，输出到 `/workspace/AvaMedia-sidebar-review/components/impl/`；`compare_components.py` 生成左 demo / 右实控件的 `compare-s01..s12-light/dark.png`。整体 gallery 与分类窗口另交付到 `ai-progress/v3/`。
+`tools/AvaMedia.AiProgressCapture --gallery-view` 打开可操作、可切换浅深色的 12 类组件预览；`--gallery` 截取所有区块。截图使用 zh-CN、DISPLAY=:11、AVAMEDIA_CHROME=mac、XDG_DATA_HOME=/tmp/avademo/data，输出到 `/workspace/AvaMedia-sidebar-review/components/impl/`；`compare_components.py` 生成左 demo / 右实控件的 `compare-s01..s12-light/dark.png`。整体 gallery 另交付到 `ai-progress/v3/`；旧的 AI 进度截图模式已删除，多阶段窗口截图用 `tools/AvaMedia.MultiStageCapture`。
 
 #### 7.9.5 空状态与错误状态（补充 9.3）
 
@@ -921,7 +911,6 @@ stage.Update(1, "逐个文件分析", "按添加顺序处理文件", "412 / 1284
 
 ### 10.12 阶段、纸页与媒体舞台边界
 
-- 普通 StageIndicator 默认 `AcStageHeight=64`；字幕 `SpeechStageCard` 的 160 高摘要 / 波形舞台为专项角色，由字幕专项令牌提供，不能让通用阶段高覆盖。
 - PDF 预览按真实纸页比例展示，不套视频至少铺满一轴的规则；纸张本身与主题 Card 表面分开，参数使用通用字段契约。
 - 图片按自身比例适配；双页看图、全屏、播放器 VR 由各自舞台控制几何。纯音频波形、小片段缩略图和连续播放画面不加静态预览氛围光 / 投影。普通图片大预览复用 10.3，视频交互叠层坐标按 10.4。
 

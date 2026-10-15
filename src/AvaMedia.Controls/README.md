@@ -16,7 +16,7 @@
 
 普通控件添加 `ac` 类，按钮再添加 `primary`、`secondary`、`borderless` 或 `danger`。具名主题为 `AcButton`、`AcCheckBox`、`AcRadioButton`、`AcToggleSwitch`、`AcComboBox`、`AcNumericUpDown`、`AcTextBox`、`AcSlider`、`AcProgressBar`、`AcToolTip`、`AcScrollBar`、`AcToggleButton`、`AcExpander`、`AcTreeView/AcTreeViewItem`、`AcTabControl/AcTabItem`、`AcListBox/AcListBoxItem`。主题不覆盖 Avalonia 类型资源键，选择器排除宿主经典窗口类 `mac-os9` / `windows-xp`。
 
-组合类型：`Card`、`Sheet`、`ListRow`、`SectionHeader`、`StatusPill`、`StageIndicator`、`SubStepRow`、`StatusGlyph`、`SegmentedControl`、`EmptyState`。状态取 `running`、`done` / `completed`、`paused`、`failed`、`waiting` / `cancelled`。它们只接收显示内容，不了解媒体任务或应用皮肤类型。
+组合类型：`Card`、`Sheet`、`ListRow`、`SectionHeader`、`StatusPill`、`StatusGlyph`、`SegmentedControl`、`EmptyState`。状态取 `running`、`done` / `completed`、`paused`、`failed`、`waiting` / `cancelled`。它们只接收显示内容，不了解媒体任务或应用皮肤类型。
 
 `Themes/Defaults.axaml` 提供浅色与深色默认值。宿主覆盖 `Ui*` 颜色及 `Ac*` 尺寸和表面令牌，组合组件使用动态资源，已有实例也会响应皮肤切换。具体契约及 macOS 参考尺寸见仓库 UISPEC.MD 的 7.9 节。经典皮肤的标准控件继续由宿主主题提供；组合控件的圆角和阴影由同名 `Ac*` 令牌覆盖。
 

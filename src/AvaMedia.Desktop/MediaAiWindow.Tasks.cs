@@ -120,7 +120,7 @@ public sealed partial class MediaAiWindow
         var selected = _list.SelectedItem as MediaFileEntry;
         var active = selected is not null ? _taskJobs.GetValueOrDefault(selected.Path) : null;
         active ??= _taskJobs.Values.FirstOrDefault(job => job.State == JobState.Running);
-        if (active is not null) { _activity.Update(active.Activity is { } activity ? MediaPrivacy.Filter(activity, _settings.EnableNsfwContent) : null); _status.Text = active.Status; }
+        if (active is not null) _status.Text = active.Status;
         UpdateActions();
     }
 

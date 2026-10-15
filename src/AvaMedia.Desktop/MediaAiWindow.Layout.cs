@@ -92,11 +92,10 @@ public sealed partial class MediaAiWindow
         var body = _workspaceBody;
         var filePanel = ChartPanel(files); filePanel.VerticalAlignment = VerticalAlignment.Stretch;
         body.Children.Add(filePanel); var result = BuildResultPane(); Grid.SetColumn(result, 1); body.Children.Add(result); Grid.SetRow(body, 1); root.Children.Add(body);
-        Grid.SetRow(_activity, 2); root.Children.Add(_activity);
         var state = new StackPanel { Spacing = 3 }; state.Children.Add(_status); state.Children.Add(_modelStatus);
         state.Children.Add(BuildModelPreparation());
         Grid.SetRow(state, 3); root.Children.Add(state); Content = root;
-        _activity.Update(null); _undo.IsVisible = CanUndo();
+        _undo.IsVisible = CanUndo();
         _analyze.Click += async (_, _) => await AnalyzeAsync();
         _enqueueQueue.Click += async (_, _) => await EnqueueSelectedAsync();
         _viewQueue.Click += (_, _) => ShowQueuedTasks();

@@ -28,7 +28,6 @@ public sealed partial class MediaAiWindow : Window
     private readonly CheckBox _recursive = new() { Content = "包含子文件夹", IsChecked = true };
     private readonly TextBlock _status = Ui.Status("就绪");
     private readonly TextBlock _modelStatus = Ui.Text("读取模型状态…", "caption");
-    private readonly Controls.AiActivityView _activity = new() { Compact = true };
     private readonly Button _analyze = new() { Name = "MediaAiAnalyze", Content = "开始分析", Classes = { "primary", "dialog-action" } };
     private readonly Button _rename = new() { Content = "标签重命名…" };
     private readonly Button _undo = new() { Content = "撤销重命名" };

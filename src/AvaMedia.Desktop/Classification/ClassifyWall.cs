@@ -135,33 +135,3 @@ internal sealed class FileWall : ListBox
         }
     }
 }
-
-/// <summary>Eight files around the current source, in input order, without realizing the full queue.</summary>
-internal sealed class FileFlow : Grid
-{
-    private readonly FileWall.WallTile[] _tiles = new FileWall.WallTile[8];
-    public FileFlow()
-    {
-        Height = FileWall.Tile; VerticalAlignment = VerticalAlignment.Top; ColumnSpacing = FileWall.Gap;
-        for (var i = 0; i < _tiles.Length; i++)
-        {
-            ColumnDefinitions.Add(new(1, GridUnitType.Star));
-            _tiles[i] = new() { HorizontalAlignment = HorizontalAlignment.Left };
-            Grid.SetColumn(_tiles[i], i); Children.Add(_tiles[i]);
-        }
-    }
-    public void Update(IReadOnlyList<FolderFileVisual> files)
-    {
-        var current = -1;
-        for (var i = 0; i < files.Count; i++) if (files[i].State == FolderFileState.Processing) { current = i; break; }
-        if (current < 0)
-            for (var i = 0; i < files.Count; i++) if (files[i].State == FolderFileState.Queued) { current = i; break; }
-        if (current < 0) current = files.Count - 1;
-        var start = Math.Clamp(current - 5, 0, Math.Max(0, files.Count - _tiles.Length));
-        for (var i = 0; i < _tiles.Length; i++)
-        {
-            _tiles[i].IsVisible = start + i < files.Count;
-            if (_tiles[i].IsVisible) _tiles[i].Set(files[start + i]);
-        }
-    }
-}

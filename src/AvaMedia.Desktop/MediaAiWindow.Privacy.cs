@@ -8,7 +8,7 @@ public sealed partial class MediaAiWindow
     private void PrivacyChanged(object? sender, EventArgs args)
     {
         if (_closed) return;
-        _activity.Update(null); _operation?.Cancel(); ReloadWordCandidates();
+        _operation?.Cancel(); ReloadWordCandidates();
         UpdatePrivacyScopes(); RefreshDisplayedResults(); UpdateModelPreparationActions();
         _status.Text = Localization.Text("隐私设置已更新");
         _ = RefreshModelAsync();

@@ -169,7 +169,6 @@ public sealed partial class PersonClipWindow : Window
         results.Children.Add(Ui.Text("保留片段", "settingsHeading")); results.Children.Add(_resultSummary); var retainedArea = new Grid { MinHeight = 140 }; retainedArea.Children.Add(_retained); retainedArea.Children.Add(_resultEmpty); results.Children.Add(retainedArea);
         _review = Ui.Button("播放和调整片段…", async () => await ReviewAsync()); results.Children.Add(_review);
         results.Children.Add(new Expander { Header = "排除区间", Content = _rangePanel, HorizontalAlignment = HorizontalAlignment.Stretch });
-        results.Children.Add(_activity);
         var rangeScroll = new ScrollViewer { Content = results }; Grid.SetColumn(rangeScroll, 1); body.Children.Add(rangeScroll);
         Grid.SetRow(body, 1); layout.Children.Add(body);
         var output = new Grid { ColumnDefinitions = new("Auto,140,*,Auto,Auto"), [!Grid.ColumnSpacingProperty] = Resource("AcRowGap") };

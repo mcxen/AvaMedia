@@ -36,7 +36,6 @@ public sealed partial class FolderClassificationWindow
     private readonly ComboBox _mode = Ui.Combo(["复制到分类目录", "移动到分类目录"], "复制到分类目录");
     private readonly TextBlock _status = Ui.Status("选择文件夹或拖入媒体");
     private readonly TextBlock _scanErrors = Ui.Text("", "caption");
-    private readonly AiActivityView _activity = new() { Collapsible = true, DetailHeight = 170 };
     private readonly StackPanel _videoSettings = new() { [!StackPanel.SpacingProperty] = Resource("CtDetailGap"), IsVisible = false };
     private readonly Button _analyze = new() { Content = "后台运行分类", Classes = { "primary" } };
     private readonly Button _retry = new() { Content = "重试未完成" };
@@ -139,7 +138,6 @@ public sealed partial class FolderClassificationWindow
         var detailsScroll = new ScrollViewer { Content = _details }; Grid.SetRow(detailsScroll, 1); inspector.Children.Add(detailsScroll);
         Grid.SetColumn(inspector, 2); body.Children.Add(inspector);
         Grid.SetRow(body, 1); root.Children.Add(body);
-        Grid.SetRow(_activity, 2); root.Children.Add(_activity);
         var footer = new StackPanel { [!StackPanel.SpacingProperty] = Resource("CtDetailGap") };
         _scanErrors.IsVisible = false; _scanErrors.MaxHeight = 60; footer.Children.Add(new ScrollViewer { Content = _scanErrors, MaxHeight = 60 });
         footer.Children.Add(_status);
@@ -150,9 +148,7 @@ public sealed partial class FolderClassificationWindow
         Content = root;
         SizeChanged += (_, _) =>
         {
-            _activity.DetailHeight = Math.Clamp(Bounds.Height * .22, 90, 180);
             _selectedCover.Height = Math.Clamp(Bounds.Height * .22, 100, 180);
-            if (Bounds.Height < 640) _activity.DetailsExpanded = false;
         };
         _analyze.Click += async (_, _) => await GuardAsync(() => AnalyzeAsync(false));
         _retry.Click += async (_, _) => await GuardAsync(() => AnalyzeAsync(true));

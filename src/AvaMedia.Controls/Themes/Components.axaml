@@ -6,7 +6,6 @@
   </ResourceDictionary.MergedDictionaries></ResourceDictionary></Styles.Resources>
 <Style Selector="ac|EmptyState.error"><Setter Property="IsError" Value="True"/></Style>
 <Style Selector="Border.ac-card"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcCardRadius}"/><Setter Property="Padding" Value="{DynamicResource AcCardPadding}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/><Setter Property="BorderThickness" Value="0"/></Style>
-<Style Selector="Border.ac-stage"><Setter Property="Height" Value="{DynamicResource AcStageHeight}"/><Setter Property="CornerRadius" Value="{DynamicResource AcStageRadius}"/><Setter Property="Padding" Value="{DynamicResource AcStagePadding}"/></Style>
 <Style Selector="Border.ac-list-row"><Setter Property="Height" Value="{DynamicResource AcListHeight}"/><Setter Property="Margin" Value="{DynamicResource AcListMargin}"/><Setter Property="Padding" Value="{DynamicResource AcListPadding}"/><Setter Property="CornerRadius" Value="{DynamicResource AcListRadius}"/><Setter Property="BorderThickness" Value="0"/></Style>
 <Style Selector="Border.ac-list-row.text"><Setter Property="Height" Value="{DynamicResource AcTextRowHeight}"/></Style>
 <Style Selector="Border.ac-list-row:pointerover"><Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
@@ -88,7 +87,7 @@
 <Style Selector="ac|StatusGlyph.ac-running[(ac|ComponentMotion.Reduced)=False]"><Style.Animations><Animation Duration="0:0:0.8" IterationCount="Infinite"><KeyFrame Cue="0%"><Setter Property="Angle" Value="0"/></KeyFrame><KeyFrame Cue="100%"><Setter Property="Angle" Value="360"/></KeyFrame></Animation></Style.Animations></Style>
 <Style Selector="ScrollBar.ac-hidden"><Setter Property="Opacity" Value="0"/></Style>
 <Style Selector="ScrollBar[(ac|ScrollVisibility.IsEnabled)=True]"><Setter Property="Transitions"><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2"/></Transitions></Setter></Style>
-<Style Selector="Border.ac-card, Border.ac-group, Border.ac-notice, Border.ac-sheet, Border.ac-popover, Border.ac-tooltip, Border.ac-list-row, Border.ac-stage, Border.ac-split, Border.ac-status, Border.ac-badge"><Setter Property="UseLayoutRounding" Value="False"/><Setter Property="ClipToBounds" Value="False"/><Setter Property="ac:SurfaceContentClip.IsEnabled" Value="True"/></Style>
+<Style Selector="Border.ac-card, Border.ac-group, Border.ac-notice, Border.ac-sheet, Border.ac-popover, Border.ac-tooltip, Border.ac-list-row, Border.ac-split, Border.ac-status, Border.ac-badge"><Setter Property="UseLayoutRounding" Value="False"/><Setter Property="ClipToBounds" Value="False"/><Setter Property="ac:SurfaceContentClip.IsEnabled" Value="True"/></Style>
 <Style Selector="ContentControl.ac-popover"><Setter Property="Theme" Value="{DynamicResource AcPopover}"/></Style>
 <Style Selector=":is(Control).ac"><Setter Property="ToolTip.ShowDelay" Value="600"/></Style>
 <Style Selector="Window:not(.mac-os9):not(.windows-xp) ToggleButton.ac"><Setter Property="Theme" Value="{DynamicResource AcToggleButton}"/></Style>

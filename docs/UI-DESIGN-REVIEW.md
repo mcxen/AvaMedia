@@ -59,7 +59,7 @@
 | `FolderClassificationWindow` | 分类筐 / 文件 / 预览、分组 / 规则、服装参数、状态与部分结果；修正分组文案、错误和确认 |
 | `PersonClipWindow` | 分析状态、人工调整片段、预览、参数与输出 |
 | `VideoSummaryWindow`、`VideoSummaryResultWindow` | 模型与总结配置、阅读 / 编辑、字幕 / 画面 / 证据、可滚动结果与动作 |
-| `AiTaskWindow` | 按任务类型的进度、暂停 / 结束与部分结果区域；正在开发的方向结果控件只做源码覆盖 |
+| `MultiStageTaskWindow` | AI 任务（有人片段、自动旋转、字幕、视频总结、标签/整理）的阶段列表、预览、结果、暂停 / 结束；旧 `AiTaskWindow` 已删除 |
 | `RenameWindow`、`ContactSheetWindow` | 文件计划与选择、命名规则 / 词库、截图参数与预览、输出 |
 | `PlayerWindow`、`DiscOpenWindow` | 菜单、播放控制、时间、轨道 / 原盘选择、播放列表；补原盘字段名称与默认播放 |
 | `MediaInfoWindow` | 文件、详情、预览、导出与最小宽度；修正伸缩列和状态预留 |

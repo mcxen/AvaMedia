@@ -46,8 +46,8 @@ CAPTURE_OUTPUT=/tmp/avam-web-capture/impl CAPTURE_SKIP_PUBLISH=1 bash tools/web-
 
 On 2026-10-12, capture completed with loopback sockets enabled. The Release
 publish passed; existing nullable/unused-field and trimming warnings remain.
-All three PNGs were opened for visual review, then paired with the v2 demos by
-`tools/AvaMedia.AiProgressCapture/sidebyside.py`. No page errors were recorded.
+All three PNGs were opened for visual review, then paired with the v2 demos by the
+(since removed) desktop AI progress side-by-side script. No page errors were recorded.
 The file picker adds the three files separately in demo order, avoiding
 platform-dependent canvas multi-selection gestures. Desktop windows use the
 native X11 capture harness, with their own fixture report in `captures.json`.

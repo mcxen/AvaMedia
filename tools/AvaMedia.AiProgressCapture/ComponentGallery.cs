@@ -179,26 +179,8 @@ internal static class ComponentGallery
             progress.Classes.Add("ac"); if (html.Contains("orange")) progress.Classes.Add("paused"); if (html.Contains("red")) progress.Classes.Add("failed"); Theme(progress, "AcProgressBar"); return progress;
         }
         if (Has(cls, "ring")) return new ProgressRing { Value = 73 };
-        if (Has(cls, "stages"))
-        {
-            var grid = new Grid { ColumnDefinitions = new("*,24,*,24,*,24,*") }; var i = 0;
-            foreach (var item in n.GetProperty("items").EnumerateArray().Where(x => Text(x, "cls").StartsWith("sc")))
-            {
-                var stage = new StageIndicator(); stage.Update(i, Text(item, "title"), Text(item, "detail"), Text(item, "count"), Has(Text(item, "cls"), "cur") ? "running" : Has(Text(item, "cls"), "done") ? "done" : "waiting"); Grid.SetColumn(stage, i * 2); grid.Children.Add(stage);
-                if (i < 3) { var arrow = Label("→", 12, "AcTextTertiary"); arrow.HorizontalAlignment = HorizontalAlignment.Center; arrow.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(arrow, i * 2 + 1); grid.Children.Add(arrow); } i++;
-            }
-            return grid;
-        }
-        if (Has(cls, "subs"))
-        {
-            var panel = new StackPanel(); var i = 0;
-            foreach (var item in n.GetProperty("items").EnumerateArray())
-            {
-                var step = new SubStepRow(); step.Update(Text(item, "title"), Text(item, "detail"), new[] { "done", "running", "waiting", "failed" }[i++], Text(item, "count"));
-                panel.Children.Add(new Border { Padding = new(0, 7), BorderThickness = new(0, 0, 0, .5), [!Border.BorderBrushProperty] = Resource("AcStageLineBrush"), Child = step });
-            }
-            return panel;
-        }
+        // The old stage-indicator / sub-step progress components were removed with the AI progress views (UISPEC 10.16 replaces them).
+        if (Has(cls, "stages") || Has(cls, "subs")) return new Panel();
         if (Has(cls, "seg") || Has(cls, "tabs"))
         {
             var items = n.GetProperty("items").EnumerateArray().ToArray();
