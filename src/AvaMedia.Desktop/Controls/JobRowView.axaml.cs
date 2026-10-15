@@ -14,6 +14,9 @@ public partial class JobRowView : UserControl
 {
     private MainWindow? _owner;
     private JobRowDetails? _details;
+    private TaskRowStatus? _status;
+    private JobStageSummary? _summary;
+    private TaskStageCard? _stageCard;
     private CancellationTokenSource? _load;
     private PreviewKey? _key;
     private int _refreshPosted, _fullRefresh;
@@ -35,6 +38,7 @@ public partial class JobRowView : UserControl
         EnableOutputDrag(CoverButton);
         CoverButton.KeyDown += (_, _) => _suppressCoverClick = false;
         OutputDragHandle.DoubleTapped += (_, e) => { if (OutputDragGrip.IsVisible) e.Handled = true; };
+        ToolTip.AddToolTipOpeningHandler(StatusArea, (_, _) => UpdateStageCard());
     }
     private void EnableOutputDrag(Control source)
     {
@@ -50,6 +54,7 @@ public partial class JobRowView : UserControl
         _owner = this.GetVisualAncestors().OfType<MainWindow>().FirstOrDefault();
         if (_owner is null || DataContext is not Job job) return;
         _details = new(job);
+        _details.PropertyChanged += DetailsChanged;
         RowRoot.DataContext = _details;
         job.PropertyChanged += JobChanged;
         _owner.JobDisplayChanged += Refresh;
@@ -58,27 +63,33 @@ public partial class JobRowView : UserControl
     }
     private void JobChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is not (nameof(Job.Progress) or nameof(Job.Status) or nameof(Job.ProgressDetail)
-            or nameof(Job.Estimate) or nameof(Job.RemainingTimeText) or nameof(Job.Activity))) Interlocked.Exchange(ref _fullRefresh, 1);
+        // Live status arrives as throttled StageSummary publishes; any other property refreshes the whole row.
+        if (e.PropertyName is not (nameof(Job.StageSummary) or nameof(Job.Progress) or nameof(Job.Status) or nameof(Job.ProgressDetail)
+            or nameof(Job.Estimate) or nameof(Job.RemainingTimeText) or nameof(Job.Activity) or nameof(Job.DownloadSpeed))) Interlocked.Exchange(ref _fullRefresh, 1);
+        if (e.PropertyName is nameof(Job.Progress) or nameof(Job.Status) or nameof(Job.ProgressDetail) or nameof(Job.Estimate)
+            or nameof(Job.RemainingTimeText) or nameof(Job.Activity) or nameof(Job.DownloadSpeed)) return;
         if (Interlocked.Exchange(ref _refreshPosted, 1) != 0) return;
         Dispatcher.UIThread.Post(() =>
         {
             Interlocked.Exchange(ref _refreshPosted, 0);
             var full = Interlocked.Exchange(ref _fullRefresh, 0) != 0;
             if (!ReferenceEquals(sender, _details?.Job)) return;
-            if (full) Refresh(); else { _details?.RefreshProgress(); RefreshActivity(); }
+            if (full) Refresh(); else RefreshStatus();
         });
+    }
+    // Output sizes arrive asynchronously and feed the completed status line.
+    private void DetailsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not ("" or null) || !ReferenceEquals(sender, _details)) return;
+        Dispatcher.UIThread.Post(() => { if (ReferenceEquals(sender, _details)) RefreshStatus(); });
     }
     private void Refresh()
     {
         if (_details is null || _owner is null) return;
         if (!_owner.IsQueuePresentationVisible) { SuspendPreview(); return; }
         _details.Refresh();
-        RefreshActivity();
+        RefreshStatus();
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
-        foreach (var state in Enum.GetValues<JobState>())
-            foreach (var target in new Control[] { StateText, CompactStateText, StateIcon })
-                target.Classes.Set(state.ToString().ToLowerInvariant(), state == _details.Job.State);
         var job = _details.Job;
         var canDrag = _owner.CanDragOutput(job);
         OutputDragGrip.IsVisible = canDrag;
@@ -117,20 +128,45 @@ public partial class JobRowView : UserControl
         _previewReady = LoadAsync(_details, _owner.Engine, key, _load);
         Ready = Task.WhenAll(_details.MetadataReady, _previewReady);
     }
-    private void RefreshActivity()
+    private void RefreshStatus()
     {
-        var job = _details?.Job;
-        if (job is not null) RefreshRowActions(job);
-        TaskStatePill.State = job?.CompletionKind == JobCompletionKind.Unchanged ? "waiting" : job?.State.ToString().ToLowerInvariant() ?? "waiting";
-        TaskStatePill.Text = Localization.Text(job?.CompletionKind == JobCompletionKind.Unchanged ? "无需瘦身" : job?.State switch { JobState.Running => "进行中", JobState.Completed => "已完成", JobState.Paused => "已暂停", JobState.Failed => "失败", JobState.Cancelled => "已取消", JobState.Stopping => "正在停止", _ => "等待" });
-        PipelineProgress.Classes.Set("paused", job?.State == JobState.Paused); PipelineProgress.Classes.Set("failed", job?.State == JobState.Failed);
-        // The compact row keeps one thin progress line; the AI pipeline stays in 查看任务.
-        var compact = _owner is { } owner && !owner.Classes.Contains("mac-os9") && !owner.Classes.Contains("windows-xp");
-        ActivityView.Update(_owner?.IsQueuePresentationVisible == true && !compact ? job?.Activity : null);
-        PipelineProgress.IsVisible = compact || job?.Activity is null;
-        ProgressSlot.Height = compact ? 4 : _owner?.CanViewAiTask(job!) == true ? 54 : 8;
-        ProgressSlot.IsVisible = !compact || job?.State is JobState.Running or JobState.Stopping;
-        StateLine.IsVisible = compact || job is not { State: JobState.Running, Activity: not null };
+        if (_details is not { } details || _owner is null) return;
+        var job = details.Job;
+        JobStageSummaries.Attach(job);
+        var summary = job.StageSummary;
+        var status = TaskRowStatus.From(job, summary, details.CompletedDetail);
+        _status = status; _summary = summary;
+        RefreshRowActions(job);
+        TaskStatePill.State = status.Pill; TaskStatePill.Text = status.PillText;
+        StateText.Text = status.PillText;
+        foreach (var state in Enum.GetValues<JobState>()) StateText.Classes.Set(state.ToString().ToLowerInvariant(), state == status.State);
+        StageTitleText.Text = status.Title; StageTitleText.IsVisible = status.Title.Length > 0;
+        StageTitleText.Classes.Set("running", status.State == JobState.Running);
+        CompactStateText.Text = status.Title.Length > 0 && status.Text.Length > 0 ? "· " + status.Text : status.Text;
+        CompactStateText.Classes.Set("failed", status.IsError);
+        StateMetaText.Text = status.Meta; StateMetaText.IsVisible = status.Meta.Length > 0;
+        if (status.Segments is { } segments)
+        {
+            StageBar.Update(segments); StageBar.IsVisible = true; PipelineProgress.IsVisible = false;
+            ToolTip.SetTip(StatusArea, _stageCard ??= new TaskStageCard());
+            if (ToolTip.GetIsOpen(StatusArea)) UpdateStageCard();
+        }
+        else
+        {
+            StageBar.IsVisible = false;
+            PipelineProgress.IsVisible = status.Progress is not null;
+            PipelineProgress.IsIndeterminate = status.Progress is double.NaN;
+            if (status.Progress is { } value && !double.IsNaN(value)) PipelineProgress.Value = value;
+            PipelineProgress.Classes.Set("paused", status.State is JobState.Paused or JobState.Stopping);
+            var tip = status.Tip.Length > 0 ? status.Tip : null;
+            ToolTip.SetTip(StatusArea, tip);
+        }
+    }
+    private void UpdateStageCard()
+    {
+        if (_stageCard is null || _status is null || _details is null) return;
+        var summary = _summary is { } s && s.State == _details.Job.State ? s : null;
+        if (summary is not null) _stageCard.Update(summary, _status);
     }
     private async Task LoadAsync(JobRowDetails details, IMediaEngine engine, PreviewKey key, CancellationTokenSource cancellation)
     {
@@ -196,7 +232,9 @@ public partial class JobRowView : UserControl
         RunTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Paused or JobState.Failed;
         RunTaskButton.IsEnabled = _owner.CanRunRowTask(job);
         RunTaskIcon.Kind = job.State == JobState.Failed ? "rotate-cw" : "play";
-        var label = Localization.Text(job.State == JobState.Failed ? "重试" : job.State == JobState.Paused ? "恢复" : "开始任务");
+        var retryStage = job.State == JobState.Failed ? _status?.RetryStageTitle ?? "" : "";
+        var label = retryStage.Length > 0 ? Localization.Format($"从「{Localization.Key(retryStage)}」重试")
+            : Localization.Text(job.State == JobState.Failed ? "重试" : job.State == JobState.Paused ? "恢复" : "开始任务");
         ToolTip.SetTip(RunTaskButton, label); AutomationProperties.SetName(RunTaskButton, label);
         PauseTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Running;
         PauseTaskButton.IsEnabled = _owner.CanPauseRowTask(job);
@@ -204,7 +242,13 @@ public partial class JobRowView : UserControl
         StopTaskButton.IsEnabled = _owner.CanStopRowTask(job);
     }
     private async void RunTaskClick(object? sender, RoutedEventArgs e)
-    { e.Handled = true; if (_owner is not null && _details is not null) await _owner.RunRowTaskAsync(_details.Job); }
+    {
+        e.Handled = true;
+        if (_owner is null || _details is null) return;
+        var job = _details.Job;
+        if (job.State == JobState.Failed && _status is { RetryStageId.Length: > 0 } status) await _owner.RetryRowTaskFromStageAsync(job, status.RetryStageId);
+        else await _owner.RunRowTaskAsync(job);
+    }
     private void PauseTaskClick(object? sender, RoutedEventArgs e)
     { e.Handled = true; if (_details is not null) _owner?.PauseRowTask(_details.Job); }
     private void StopTaskClick(object? sender, RoutedEventArgs e)
@@ -250,7 +294,6 @@ public partial class JobRowView : UserControl
     private void PresentationChanged(bool visible) { if (visible) Refresh(); else SuspendPreview(); }
     private void SuspendPreview()
     {
-        ActivityView.Update(null);
         var loading = _load; _load = null; loading?.Cancel(); _key = null;
         _previewReady = Task.CompletedTask; Ready = _details?.MetadataReady ?? Task.CompletedTask;
         _details?.ReleaseCover();
@@ -262,9 +305,9 @@ public partial class JobRowView : UserControl
         _previewReady = Task.CompletedTask;
         if (_owner is not null)
         { _owner.JobDisplayChanged -= Refresh; _owner.JobPresentationChanged -= PresentationChanged; }
-        if (_details is not null) _details.Job.PropertyChanged -= JobChanged;
+        if (_details is not null) { _details.Job.PropertyChanged -= JobChanged; _details.PropertyChanged -= DetailsChanged; }
         RowRoot.DataContext = null;
-        ActivityView.Update(null);
+        _status = null; _summary = null;
         _details?.Dispose(); _details = null; _owner = null;
     }
     private static bool IsPreviewMedia(string path)

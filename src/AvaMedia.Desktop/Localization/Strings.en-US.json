@@ -4161,5 +4161,17 @@
   "采样帧": "Sampled frames",
   "采样帧数": "Sample frames",
   "长视频先按内容分段理解，再汇总成章节与概要；中断后可从分段理解继续。": "Long videos are understood segment by segment, then combined into chapters and a summary; an interrupted run can continue from segment understanding.",
-  "长视频分段": "Long video, segmented"
+  "长视频分段": "Long video, segmented",
+  "停在 {0}": "Stopped at {0}",
+  "本阶段 {0}": "Stage {0}",
+  "用时 {0}": "Took {0}",
+  "剩余 {0}": "{0} left",
+  "处理阶段 {0}/{1}": "Stage {0}/{1}",
+  "处理阶段 · 已完成 {0}/{1}": "Stages · {0}/{1} done",
+  "总进度 {0}": "Overall {0}",
+  "可从「{0}」重试，之前阶段的结果会保留": "Can retry from \"{0}\"; results of earlier stages are kept",
+  "只能重新执行全部阶段": "Only a full rerun of all stages is possible",
+  "已暂停于「{0}」，继续后从此阶段接着处理": "Paused at \"{0}\"; resuming continues from this stage",
+  "已在「{0}」取消": "Cancelled at \"{0}\"",
+  "从「{0}」重试": "Retry from \"{0}\""
 }

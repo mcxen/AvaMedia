@@ -177,48 +177,12 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
             return Localization.Join(" · ", parts);
         }
     }
-    public string StateText => Job.State switch
-    {
-        JobState.Waiting => "等待开始",
-        JobState.Running when Job.Activity is not null => Localization.Text("处理中"),
-        JobState.Running => Localization.Format($"{Localization.Key(Job.FeatureId == "download" ? "下载中" : "处理中")}  {Job.Progress:0.0}%"),
-        JobState.Completed when Job.CompletionKind == JobCompletionKind.Unchanged => Localization.Text("无需瘦身"),
-        JobState.Completed => Localization.Join(" · ", new[] { "已完成", Job.HasInternalOutput ? "" : _outputSize, Job.Options.Orientation is not null || Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s=>s.Length>0)),
-        JobState.Failed => "失败",
-        JobState.Paused => "已暂停排队",
-        JobState.Stopping => "正在终止",
-        _ => "已停止"
-    };
-    public string StateDetail => Job.State switch
-    {
-        JobState.Running when Job.Activity is not null => "",
-        JobState.Running => Job.Status.IndexOf(" · ", StringComparison.Ordinal) is >= 0 and var separator ? Job.Status[(separator + 3)..] : "",
-        JobState.Completed when Job.CompletionKind == JobCompletionKind.Unchanged => Job.CompletionMessage,
-        JobState.Failed => string.IsNullOrWhiteSpace(Job.Error) ? "查看任务详情" : Job.Error.Trim(),
-        _ => ""
-    };
-    public bool HasStateDetail => StateDetail.Length > 0;
+    /// <summary>Real result facts for a completed row: output size and, for tools that report one, the result line.</summary>
+    public string CompletedDetail => Job.State != JobState.Completed || Job.CompletionKind == JobCompletionKind.Unchanged ? ""
+        : Localization.Join(" · ", new[] { Job.HasInternalOutput ? "" : _outputSize, Job.Options.Orientation is not null || Job.Options.VideoCompression is not null || Job.Options.VideoSlimming is not null || Job.Options.ImageCompression is not null || Job.Options.Pdf is not null || Job.Options.Transcription is not null ? Job.ProgressDetail : "" }.Where(s => s.Length > 0));
     // Compact (light / dark skin) row: "tool → output", one meta line and a short state.
     public string TargetLine => $"{Localization.Text(Job.Options.VlRename is not null ? "VL 命名分析" : FeatureNavigation.Label(Catalog.Find(Job.FeatureId)))}  →  {OutputName}";
     public string MetaLine => Localization.Join(" · ", new[] { MediaSummary, CodecSummary }.Where(s => s.Length > 0));
-    public string CompactState => Job.State switch
-    {
-        JobState.Running => Localization.Join(" · ", new[] {
-            $"{Job.Progress:0.0}%", Job.Activity?.Detail ?? "", Job.RemainingTimeText
-        }.Where(text => !string.IsNullOrWhiteSpace(text))),
-        JobState.Paused when Job.Progress > 0 => $"{Job.Progress:0.0}%",
-        JobState.Completed when Job.CompletionKind == JobCompletionKind.Unchanged => Localization.Text(Job.CompletionMessage),
-        JobState.Completed => Job.HasInternalOutput ? "" : _outputSize,
-        JobState.Failed => Job.Error.Trim(),
-        _ => ""
-    };
-    public string StateIcon => Job.State switch
-    {
-        JobState.Waiting => "clock", JobState.Completed => "circle-check", JobState.Failed => "circle-alert",
-        JobState.Paused => "circle-pause", JobState.Cancelled or JobState.Stopping => "circle-x", _ => ""
-    };
-    public bool HasStateIcon => StateIcon.Length > 0;
-    public string StateTip => Job.State == JobState.Running ? Localization.Text(Job.Status) : HasStateDetail ? StateText + "\n" + StateDetail : StateText;
     public void Refresh()
     {
         if (_disposed) return;
@@ -238,8 +202,6 @@ public sealed class JobRowDetails(Job job) : Observable, IDisposable
         _outputSize = Job.State == JobState.Completed && _outputBytes >= 0 ? Size(_outputBytes) : "";
         Raise(string.Empty);
     }
-    internal void RefreshProgress()
-    { Raise(nameof(StateText)); Raise(nameof(StateDetail)); Raise(nameof(HasStateDetail)); Raise(nameof(CompactState)); Raise(nameof(StateTip)); }
     private async Task ReadSizesAsync(string[] inputs, string output, CancellationTokenSource cancellation)
     {
         var token = cancellation.Token;

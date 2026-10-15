@@ -138,6 +138,7 @@
   <Thickness x:Key="AcMsStageListPadding">6,8</Thickness>
   <Thickness x:Key="AcMsBannerPadding">12,10</Thickness>
   <Thickness x:Key="AcMsSectionPadding">14,12</Thickness>
+  <x:Double x:Key="AcStageBarGap">2</x:Double>
   <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
       <Color x:Key="AcMaterialTintColor">#F6F6F8</Color>

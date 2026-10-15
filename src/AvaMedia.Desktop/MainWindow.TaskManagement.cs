@@ -27,6 +27,15 @@ public partial class MainWindow
     internal bool CanRunRowTask(Job job) => _jobs.Contains(job) && (CanStartTask(job) || CanContinueTask(job)
         || job.State == JobState.Failed && CanRequeueTask(job));
     internal Task RunRowTaskAsync(Job job) => CanRunRowTask(job) ? RequestTaskRunAsync(job) : Task.CompletedTask;
+    private static string RetryStageId(Job job) => job.State == JobState.Failed && job.StageSummary is { State: JobState.Failed } summary ? summary.RetryStageId : "";
+    private static string RetryStageTitle(Job job) => job.StageSummary?.Stages.FirstOrDefault(stage => stage.Id == RetryStageId(job))?.Title ?? "";
+    /// <summary>Re-runs a failed multi-stage task from the stage its summary offers, keeping the earlier stage results.</summary>
+    internal async Task RetryRowTaskFromStageAsync(Job job, string stageId)
+    {
+        if (!_jobs.Contains(job) || !CanRequeueTask(job) || stageId.Length == 0 || RetryStageId(job) != stageId) { await RunRowTaskAsync(job); return; }
+        try { await MultiStageQueueHost.RerunAsync(job, stageId); }
+        catch (Exception error) { await Ui.Message(this, "从阶段重试", error.Message); }
+    }
     internal void PauseRowTask(Job job) { if (CanPauseRowTask(job)) PauseTask(job); }
     internal void StopRowTask(Job job) { if (CanStopRowTask(job)) { _queue.Stop(job); Save(); Refresh(); } }
     internal Task ShowRowTaskAsync(Job job)
@@ -63,8 +72,11 @@ public partial class MainWindow
         TerminateTaskMenu.IsVisible = selected.Any(job => CanManageTasks && !_editingJobs.Contains(job) && job.State is JobState.Waiting or JobState.Running or JobState.Paused);
         RetryTaskMenu.IsVisible = selected.Any(job => CanRequeueTask(job) && job.State == JobState.Failed);
         RerunTaskMenu.IsVisible = selected.Any(job => CanRequeueTask(job) && job.State == JobState.Completed);
+        var stageRetry = selected is [var failed] && CanRequeueTask(failed) && RetryStageId(failed).Length > 0 ? failed : null;
+        RetryFromStageMenu.IsVisible = stageRetry is not null;
+        if (stageRetry is not null) RetryFromStageMenu.Header = Localization.Format($"从「{Localization.Key(RetryStageTitle(stageRetry))}」重试");
         TaskExecutionSeparator.IsVisible = StartTaskMenu.IsVisible || ContinueTaskMenu.IsVisible || PauseTaskMenu.IsVisible
-            || TerminateTaskMenu.IsVisible || RetryTaskMenu.IsVisible || RerunTaskMenu.IsVisible;
+            || TerminateTaskMenu.IsVisible || RetryTaskMenu.IsVisible || RetryFromStageMenu.IsVisible || RerunTaskMenu.IsVisible;
         EditTaskContextMenu.IsVisible = DuplicateTaskMenu.IsVisible = TaskFilesSeparator.IsVisible = selected.Length > 0;
         DuplicateTaskMenu.IsEnabled = CanManageTasks && selected.Length > 0;
         var moving = selected.Where(CanMoveTask).ToHashSet();
@@ -106,6 +118,11 @@ public partial class MainWindow
     {
         try { await ContinueTasksAsync(SelectedJobs()); }
         catch (Exception error) { await Ui.Message(this, "继续任务", error.Message); }
+    }
+
+    private async void RetryFromStageClick(object? sender, RoutedEventArgs args)
+    {
+        if (SelectedJobs() is [var job] && RetryStageId(job) is { Length: > 0 } stage) await RetryRowTaskFromStageAsync(job, stage);
     }
 
     private async void RerunSelectedClick(object? sender, RoutedEventArgs args)

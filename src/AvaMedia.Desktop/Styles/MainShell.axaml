@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="using:System" xmlns:controls="using:AvaMedia.Desktop.Controls">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sys="using:System" xmlns:controls="using:AvaMedia.Desktop.Controls" xmlns:ac="using:AvaMedia.Controls">
   <!-- Main window shell for the light / dark skins, after the R2 macOS-style design (see docs/SIDEBAR-TREE.md). -->
   <Styles.Resources>
     <ResourceDictionary>
@@ -114,6 +114,12 @@
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon"><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.completed"><Setter Property="Foreground" Value="{DynamicResource ShellGreen}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list controls|LucideIcon.queue-state-icon.failed"><Setter Property="Foreground" Value="{DynamicResource ShellRed}"/></Style>
+  <!-- Task-list stage display (UISPEC 7.4.1): segmented stage bar, emphasised stage lead, right-aligned overall progress. -->
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ProgressBar.paused"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list ac|StageBar.queue-stages"><Setter Property="Track" Value="{DynamicResource ShellTrack}"/><Setter Property="Done" Value="{DynamicResource ShellGreen}"/><Setter Property="Active" Value="{DynamicResource ShellBlue}"/><Setter Property="Failed" Value="{DynamicResource ShellRed}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-stage"><Setter Property="Foreground" Value="{DynamicResource ShellLabel}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-stage.running"><Setter Property="Foreground" Value="{DynamicResource ShellBlue}"/></Style>
+  <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) ListBox.task-list TextBlock.queue-meta"><Setter Property="Foreground" Value="{DynamicResource ShellWait}"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host"><Setter Property="Margin" Value="14,10,14,12"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host Border.app-statusbar"><Setter Property="Height" Value="30"/><Setter Property="CornerRadius" Value="{DynamicResource AcGroupRadius}"/><Setter Property="Background" Value="{DynamicResource UiSurface}"/><Setter Property="BoxShadow" Value="0 0 0 0.5 #1A000000"/><Setter Property="Padding" Value="12,0"/></Style>
   <Style Selector="Window.main-window:not(.mac-os9):not(.windows-xp) Border.modern-status-host TextBlock"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource ShellSecondary}"/></Style>

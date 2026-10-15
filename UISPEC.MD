@@ -502,6 +502,16 @@ else if (args.Contains("--macos9")) settings.Theme = "MacOS9";
 private readonly DispatcherTimer _poll = new() { Interval = TimeSpan.FromSeconds(3) };
 ```
 
+#### 7.4.1 任务列表阶段显示
+
+- 依据 `/workspace/AvaMedia-sidebar-review/tasklist-stages/design-dark.png`。状态列固定三行：“工具 → 产出”、4px 进度位（`AcProgressHeight`，始终占位以保持行对齐）、状态行（唯一 `StatusPill` + 强调前导 + 说明 + 右对齐等宽数字的总进度 / 剩余）。
+- 行状态只来自队列级阶段摘要 `Job.StageSummary`（`JobStageSummaryContract.cs`），由 `Controls/TaskRowStatus` 计算；行内不读取 Progress、Status 或 AI 活动视图，不显示旧的点阵 / 流程活动。摘要状态与任务状态不一致时只信任任务状态并隐藏实时数值，不显示过期进度。
+- 单阶段：等待只显示胶囊；进行中显示连续进度条（未知总量为不确定条）、前导“34.0%”、当前活动与“剩余 mm:ss”；已暂停保留冻结的 `UiWarning` 进度条与百分比；失败以 `UiDanger` 显示原因一行（完整原因在悬停）；取消与完成不显示进度条，完成显示真实体积。
+- 多阶段（阶段数 ≥ 2）在所有状态显示 `AvaMedia.Controls.StageBar`：等宽分段、间距 `AcStageBarGap`（2），已完成为成功色、当前阶段按阶段进度以强调色填充（未知为 `AcRunningFill`）、暂停为警告色、失败为危险色、跳过为空心轨道、取消为三级文字色、待处理为轨道色。状态行：进行中“阶段名 · n/N · 实际计数或本阶段百分比”，右侧“总百分比 · 剩余”；暂停“停在 阶段名 · n/N”；失败“阶段名 · n/N · 失败：原因”；取消“停在 阶段名 · n/N”；完成“N 个阶段 · 跳过 k · 用时”；等待“N 个阶段”。
+- 悬停状态区显示阶段卡片（宽 340）：“处理阶段 n/N”、总进度 · 已用 / 用时 · 剩余，逐阶段 `StageGlyph`（14）、标题、一行细节与阶段用时；当前阶段 `AcRunningFill` 底，失败阶段 `AcDangerFill` 底与红色原因；底部发丝线下说明重试点、暂停点或取消点。卡片只在打开时刷新。
+- 失败且摘要给出 `RetryStageId` 时，行内重试按钮提示改为“从「阶段名」重试”并从该阶段续跑，右键菜单增加同名项；“重试任务”仍为全部重新执行。其余操作按 9.2。
+- 进度通知由后端按任务节流（≤ 4 次 / 秒，尾值必达）、状态变化立即发布；行只合并到一次 UI 刷新，不整表重建。
+
 ### 7.5 侧栏工具树
 
 - 按“视频 / 音频 / 图片 / 文档 / 工具集”分类的手风琴，**同时只展开一个分类**；展开一个分类时其他分类自动收起。光盘作为工具集内的用途分组，目录原分类和工具 ID 保持不变；侧栏映射以 `FeatureNavigation` 为准。

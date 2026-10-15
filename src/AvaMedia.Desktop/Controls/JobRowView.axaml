@@ -9,8 +9,13 @@
     <Style Selector="TextBlock.queue-state.running"><Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
     <Style Selector="TextBlock.queue-state.completed"><Setter Property="Foreground" Value="{DynamicResource UiSuccess}"/></Style>
     <Style Selector="TextBlock.queue-state.failed"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
-    <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
-    <Style Selector="Window.windows-xp ListBoxItem:selected TextBlock.queue-secondary, Window.windows-xp ListBoxItem:selected TextBlock.queue-state"><Setter Property="Foreground" Value="White"/></Style>
+    <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+    <Style Selector="TextBlock.queue-state.paused"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
+    <Style Selector="TextBlock.queue-stage"><Setter Property="FontWeight" Value="Medium"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+    <Style Selector="TextBlock.queue-stage.running"><Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
+    <Style Selector="TextBlock.queue-meta"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+    <Style Selector="ProgressBar.paused"><Setter Property="Foreground" Value="{DynamicResource UiWarning}"/></Style>
+    <Style Selector="Window.windows-xp ListBoxItem:selected TextBlock.queue-secondary, Window.windows-xp ListBoxItem:selected TextBlock.queue-state, Window.windows-xp ListBoxItem:selected TextBlock.queue-stage, Window.windows-xp ListBoxItem:selected TextBlock.queue-meta"><Setter Property="Foreground" Value="White"/></Style>
   </UserControl.Styles>
   <Grid Classes="queue-row" x:Name="RowRoot" MinHeight="{DynamicResource ShellQueueRowHeight}">
     <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource UiQueuePreviewWidth}"/><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="1.45*"/><ColumnDefinition Width="{DynamicResource ShellQueueActionsWidth}"/></Grid.ColumnDefinitions>
@@ -46,22 +51,22 @@
         <TextBlock Grid.Column="1" Classes="modern-only queue-target" i18n:Localization.IsUserText="True" Text="{Binding TargetLine}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}"/>
       </Grid>
       <TextBlock Classes="classic-only queue-secondary" Text="{Binding SettingsSummary}" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SettingsSummary}" FontSize="{DynamicResource UiFontCaption}"/>
-      <Grid Classes="queue-status" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
-      <Grid x:Name="ProgressSlot" Classes="queue-progress" Grid.ColumnSpan="2">
-        <ProgressBar Classes="ac" x:Name="PipelineProgress" Value="{Binding Job.Progress}" Maximum="100" Height="{DynamicResource AcProgressHeight}"/>
-        <local:AiActivityView x:Name="ActivityView" Compact="True"/>
+      <!-- Task status renders only from Job.StageSummary through TaskRowStatus (UISPEC 7.4.1). -->
+      <StackPanel x:Name="StatusArea" Classes="queue-status" Spacing="3" Background="Transparent">
+      <Grid x:Name="ProgressSlot" Classes="queue-progress" Height="{DynamicResource AcProgressHeight}">
+        <ProgressBar Classes="ac" x:Name="PipelineProgress" Maximum="100" Height="{DynamicResource AcProgressHeight}" IsVisible="False"/>
+        <ac:StageBar x:Name="StageBar" Classes="queue-stages" IsVisible="False"/>
       </Grid>
-      <Grid Classes="queue-state-slot" Grid.Row="1" Grid.ColumnSpan="2" Height="28">
-      <Grid x:Name="StateLine" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="5" ToolTip.Tip="{Binding StateTip}">
-        <ac:StatusPill x:Name="TaskStatePill" Classes="modern-only"/>
-        <Border IsVisible="False" VerticalAlignment="Center"><local:LucideIcon x:Name="StateIcon" Classes="queue-state-icon" Kind="{Binding StateIcon}" IsVisible="{Binding HasStateIcon}" Width="12" Height="12"/></Border>
-        <TextBlock x:Name="StateText" Grid.Column="1" Classes="queue-state classic-only" Text="{Binding StateText}" MaxLines="1" TextTrimming="CharacterEllipsis" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
-        <TextBlock x:Name="CompactStateText" Grid.Column="1" Classes="queue-state modern-only" Text="{Binding CompactState}" MaxLines="1" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-
+      <Grid Classes="queue-state-slot" x:Name="StateSlot" Height="28">
+        <Grid x:Name="StateLine" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="5">
+          <ac:StatusPill x:Name="TaskStatePill" Classes="modern-only" VerticalAlignment="Center"/>
+          <TextBlock x:Name="StateText" Classes="queue-state classic-only" MaxLines="1" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
+          <TextBlock x:Name="StageTitleText" Grid.Column="1" Classes="queue-stage" MaxLines="1" FontFeatures="tnum" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
+          <TextBlock x:Name="CompactStateText" Grid.Column="2" Classes="queue-state" MaxLines="1" TextTrimming="CharacterEllipsis" FontFeatures="tnum" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
+          <TextBlock x:Name="StateMetaText" Grid.Column="3" Classes="queue-meta" MaxLines="1" FontFeatures="tnum" FontSize="{DynamicResource UiFontCaption}" VerticalAlignment="Center"/>
+        </Grid>
       </Grid>
-      </Grid>
-      </Grid>
-      <Border Classes="classic-only"><TextBlock Classes="queue-secondary" Text="{Binding StateDetail}" IsVisible="{Binding HasStateDetail}" Height="18" MaxLines="1" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StateDetail}" FontSize="{DynamicResource UiFontCaption}"/></Border>
+      </StackPanel>
     </StackPanel>
     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="{DynamicResource AcStatusGap}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0">
       <Button x:Name="RunTaskButton" Classes="ac secondary small" Click="RunTaskClick" ToolTip.Tip="开始任务" AutomationProperties.Name="开始任务"><local:LucideIcon x:Name="RunTaskIcon" Kind="play" Width="14" Height="14"/></Button>
