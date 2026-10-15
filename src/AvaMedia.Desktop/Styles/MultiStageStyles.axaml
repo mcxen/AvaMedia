@@ -20,7 +20,7 @@
     </ControlTheme>
   </Styles.Resources>
   <!-- Retain a visible scroll affordance in bounded result and log viewports. -->
-  <Style Selector="ScrollViewer /template/ ScrollBar"><Setter Property="ac:ScrollVisibility.Pinned" Value="True"/></Style>
+  <Style Selector="ms|MultiStageTaskWindow ScrollViewer /template/ ScrollBar"><Setter Property="ac:ScrollVisibility.Pinned" Value="True"/></Style>
   <!-- An empty log section is disabled before the task starts; dim it like the demo instead of looking selectable. -->
   <Style Selector="ms|MultiStageTaskWindow ListBoxItem:disabled"><Setter Property="Foreground" Value="{DynamicResource AcTextTertiary}"/><Setter Property="Opacity" Value="0.55"/></Style>
   <Style Selector="ListBox.ms-log"><Setter Property="ItemContainerTheme" Value="{StaticResource MsLogItem}"/></Style>
