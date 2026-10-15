@@ -17,3 +17,5 @@ public partial class Job
     [JsonIgnore] public SegmentOutput[] SummarySegments { get => Volatile.Read(ref _summarySegments).ToArray(); set { Volatile.Write(ref _summarySegments, value.ToArray()); Raise(); } }
 }
 public sealed record LongSummaryTaskSnapshot(LongSummaryReport Report, SegmentOutput[] Segments, int TotalSegments);
+
+internal sealed record SummarySegmentCheckpoint(string RunHash, SummarySegmentProgress[] Segments);

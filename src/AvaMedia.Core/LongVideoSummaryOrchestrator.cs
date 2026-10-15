@@ -21,16 +21,17 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
         var publishGate = new SemaphoreSlim(1, 1); SegmentPlan? plan = null; string runHash = ""; bool finished = false;
         LongSummaryReport Partial() => new(plan?.Duration ?? job.Duration, options.OutputLanguage, "", [], [],
             new(plan is null ? [] : CoverageValidator.Gaps(plan.Segments.Select(s => (s.Start, s.End)), plan.Duration), outputs.Values.Where(s => s.Result.Status == "degraded").Select(s => s.Range.Id).OrderBy(s => s).ToArray())) { IsPartial = true };
-        void Notify()
+        async Task Notify()
         {
             var snapshot = states.Values.OrderBy(s => s.Start).ToArray(); SummaryProgressStore.Set(job.Id.ToString(), snapshot);
             stages?.Update(VideoSummaryStageIds.UnderstandSegments, outputs.Count, plan?.Segments.Count, "段", $"已理解 {outputs.Count} 段");
             segmentProgress?.Invoke(snapshot); job.SummarySegments = outputs.Values.OrderBy(s => s.Range.Start).ToArray();
+            await store.WriteAsync("segment-progress.json", runHash, new SummarySegmentCheckpoint(runHash, snapshot), CancellationToken.None);
         }
         async Task State(SegmentRange range, string state)
         {
             await publishGate.WaitAsync(CancellationToken.None);
-            try { states[range.Id] = states[range.Id] with { State = state }; Notify(); }
+            try { states[range.Id] = states[range.Id] with { State = state }; await Notify(); }
             finally { publishGate.Release(); }
         }
         async Task Publish(SegmentJob input, SegmentResult result, bool cached, string hash)
@@ -42,7 +43,7 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
             try
             {
                 outputs[range.Id] = output; states[range.Id] = new(range.Id, range.Start, range.End, result.Status == "degraded" ? "degraded" : cached ? "cached" : "done", result.Summary);
-                Notify(); job.LongSummaryReport = Partial(); await SaveReportAsync(folder, job.LongSummaryReport, CancellationToken.None);
+                await Notify(); job.LongSummaryReport = Partial(); await SaveReportAsync(folder, job.LongSummaryReport, CancellationToken.None);
                 activity.Result(MediaTime.Format(range.Start) + " · " + result.Summary, outputs.Count); progress(30 + 40d * outputs.Count / plan.Segments.Count);
             }
             finally { publishGate.Release(); }
@@ -60,7 +61,7 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
             runHash = SummaryCheckpointStore.Hash(new { model = modelIdentity ?? model.ModelId, plan.PlanHash, budget, options.Focus, options.OutputLanguage, options.StrictSequential });
             await store.WriteAsync("run.json", runHash, new SummaryRunIdentity(runHash, plan.PlanHash), ct);
             foreach (var range in plan.Segments) states[range.Id] = new(range.Id, range.Start, range.End, "pending", "");
-            Notify(); job.LongSummaryReport = Partial(); await SaveReportAsync(folder, job.LongSummaryReport, ct);
+            await Notify(); job.LongSummaryReport = Partial(); await SaveReportAsync(folder, job.LongSummaryReport, ct);
             var evidence = new EvidenceStore(folder);
             var jobs = plan.Segments.Select(r => SemanticSegmenter.BuildJob(r, signals, budget, options.Focus, visualOnly) with { OutputLanguage = options.OutputLanguage }).ToArray();
             foreach (var input in jobs) await evidence.WriteSegmentAsync(input, ct);
@@ -102,7 +103,7 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
                     }
                     // Keep the first-pass checkpoint reusable; publish the repaired value separately.
                     await publishGate.WaitAsync(CancellationToken.None);
-                    try { outputs[input.SegmentId] = repaired.Output; states[input.SegmentId] = states[input.SegmentId] with { Summary = repaired.Output.Result.Summary, State = repaired.Output.Result.Status == "degraded" ? "degraded" : "done" }; Notify(); }
+                    try { outputs[input.SegmentId] = repaired.Output; states[input.SegmentId] = states[input.SegmentId] with { Summary = repaired.Output.Result.Summary, State = repaired.Output.Result.Status == "degraded" ? "degraded" : "done" }; await Notify(); }
                     finally { publishGate.Release(); }
                 }
             }
@@ -147,8 +148,8 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
         {
             if (!finished && plan is not null)
             {
-                foreach (var id in states.Where(p => p.Value.State == "running").Select(p => p.Key).ToArray()) states[id] = states[id] with { State = ct.IsCancellationRequested ? "pending" : "failed" };
-                Notify(); job.LongSummaryReport = Partial(); await SaveReportAsync(folder, job.LongSummaryReport, CancellationToken.None);
+                foreach (var id in states.Where(p => p.Value.State == "running").Select(p => p.Key).ToArray()) states[id] = states[id] with { State = ct.IsCancellationRequested ? "cancelled" : "failed" };
+                await Notify(); job.LongSummaryReport = Partial(); await SaveReportAsync(folder, job.LongSummaryReport, CancellationToken.None);
                 await File.WriteAllTextAsync(Path.Combine(folder, "segments.md"), Markdown(job.LongSummaryReport, outputs.Values), CancellationToken.None);
             }
             publishGate.Dispose();

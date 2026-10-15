@@ -20,7 +20,7 @@ public sealed class SummaryCheckpointStore(string root)
     {
         var path = PathFor("manifest.json");
         if (!File.Exists(path)) return [];
-        try { return JsonSerializer.Deserialize<Dictionary<string, SummaryArtifact>>(await File.ReadAllTextAsync(path, ct), LongSummaryJson.Options) ?? []; }
+        try { return JsonSerializer.Deserialize<Dictionary<string, SummaryArtifact>>(await ReadBytesAsync(path, ct), LongSummaryJson.Options) ?? []; }
         catch (JsonException) { return []; }
     }
     public async Task<T?> ReadAsync<T>(string path, string inputHash, CancellationToken ct = default) where T : class
@@ -30,7 +30,7 @@ public sealed class SummaryCheckpointStore(string root)
         {
             var manifest = await ManifestAsync(ct);
             if (!manifest.TryGetValue(path, out var entry) || entry.InputHash != inputHash || entry.State != "done" || !File.Exists(PathFor(path))) return null;
-            var bytes = await File.ReadAllBytesAsync(PathFor(path), ct);
+            var bytes = await ReadBytesAsync(PathFor(path), ct);
             if (Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant() != entry.ContentHash) return null;
             try { return JsonSerializer.Deserialize<T>(bytes, LongSummaryJson.Options); } catch (JsonException) { return null; }
         }
@@ -40,6 +40,13 @@ public sealed class SummaryCheckpointStore(string root)
     {
         var manifest = await ManifestAsync(ct);
         return manifest.TryGetValue(path, out var entry) ? await ReadAsync<T>(path, entry.InputHash, ct) : null;
+    }
+    private static async Task<byte[]> ReadBytesAsync(string path, CancellationToken ct)
+    {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, useAsync: true);
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, ct).ConfigureAwait(false);
+        return buffer.ToArray();
     }
     public async Task WriteAsync<T>(string path, string inputHash, T value, CancellationToken ct = default)
     {

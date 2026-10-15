@@ -4,13 +4,17 @@ using System.Text.Json;
 namespace AvaMedia.Core;
 
 /// <summary>Window-scoped observer. Commands and queue admission remain the host's responsibility.</summary>
-public sealed class VideoSummaryTaskSession : IMultiStageTask
+public sealed class VideoSummaryTaskSession : IVideoSummaryTask
 {
     private readonly Job _job;
     private readonly IMultiStageQueueHost _host;
     private readonly object _gate = new();
     private readonly Timer _timer;
     private MultiStageTaskSnapshot _snapshot = new();
+    private VideoSummaryTaskView _view = new();
+    private VideoSummaryViewData _viewData = new();
+    private VideoSummaryTaskState? _loadedExecution;
+    private string _loadedOutput = "", _loadedSource = "";
     private VideoSummaryStageSummary? _restored;
     private string _retryId = "";
     private long _revision, _lastLoad;
@@ -28,19 +32,33 @@ public sealed class VideoSummaryTaskSession : IMultiStageTask
     public string FeatureId => "video-summary";
     public IReadOnlyList<TaskStageDescriptor> Stages => VideoSummaryStageIds.All;
     public MultiStageTaskSnapshot Snapshot { get { lock (_gate) return _snapshot; } }
+    public VideoSummaryTaskView View { get { lock (_gate) return _view; } }
     public event EventHandler? Changed;
     private void OnJobChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(Job.State) or nameof(Job.Inputs) or nameof(Job.Output)) Interlocked.Exchange(ref _lastLoad, 0);
+        if (e.PropertyName is nameof(Job.State) or nameof(Job.Inputs) or nameof(Job.Output)
+            or nameof(Job.SummaryReport) or nameof(Job.LongSummaryReport) or nameof(Job.SummarySegments))
+            Interlocked.Exchange(ref _lastLoad, 0);
     }
     private async Task LoadAsync()
     {
         if (Interlocked.Exchange(ref _loading, 1) != 0) return;
         try
         {
+            var execution = _job.VideoSummaryStages;
+            var output = _job.Output; var source = _job.Inputs.FirstOrDefault() ?? "";
             var summary = _job.VideoSummaryStages?.Capture() ?? await VideoSummaryRetry.LoadAsync(_job).ConfigureAwait(false);
             var retry = (_job.State is JobState.Failed or JobState.Cancelled) && await VideoSummaryRetry.CanRetryAsync(_job, summary).ConfigureAwait(false);
-            lock (_gate) { if (!_disposed) { _restored = summary; _retryId = retry ? VideoSummaryStageIds.UnderstandSegments : ""; } }
+            var viewData = _job.State == JobState.Waiting ? new VideoSummaryViewData()
+                : await VideoSummaryTaskViewProjection.LoadAsync(_job).ConfigureAwait(false);
+            lock (_gate)
+            {
+                if (!_disposed && ReferenceEquals(execution, _job.VideoSummaryStages) && output == _job.Output && source == (_job.Inputs.FirstOrDefault() ?? ""))
+                {
+                    _restored = summary; _retryId = retry ? VideoSummaryStageIds.UnderstandSegments : "";
+                    _viewData = viewData; _loadedExecution = execution; _loadedOutput = output; _loadedSource = source;
+                }
+            }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
         {
@@ -56,9 +74,15 @@ public sealed class VideoSummaryTaskSession : IMultiStageTask
         {
             if (_disposed) return;
             if (Environment.TickCount64 - Interlocked.Read(ref _lastLoad) >= 2000)
-            { Interlocked.Exchange(ref _lastLoad, Environment.TickCount64); _ = LoadAsync(); }
-            VideoSummaryStageSummary? restored; string retry;
-            lock (_gate) { restored = _restored; retry = _retryId; }
+            { Interlocked.Exchange(ref _lastLoad, Environment.TickCount64); _ = Task.Run(LoadAsync); }
+            VideoSummaryStageSummary? restored; string retry; VideoSummaryViewData viewData;
+            lock (_gate)
+            {
+                var matches = ReferenceEquals(_loadedExecution, _job.VideoSummaryStages) && _loadedOutput == _job.Output
+                    && _loadedSource == (_job.Inputs.FirstOrDefault() ?? "");
+                restored = matches ? _restored : null; retry = matches ? _retryId : "";
+                viewData = matches ? _viewData : new();
+            }
             var live = _job.VideoSummaryStages?.Capture();
             var configuring = _job.State == JobState.Waiting || _job.State == JobState.Paused && live?.StartedUtc is null && restored?.StartedUtc is null;
             var summary = configuring ? null : live ?? restored;
@@ -90,7 +114,9 @@ public sealed class VideoSummaryTaskSession : IMultiStageTask
                 Commands = new() { CanStart = _host.CanStart(_job), CanPause = _host.CanPause(_job), CanResume = _host.CanResume(_job),
                     CanStop = _host.CanStop(_job), CanRerun = canRerun, CanChangeOutput = _host.CanChangeOutput(_job), RetryStageId = retryId }
             };
-            lock (_gate) { if (_disposed) return; _snapshot = next; }
+            var allowResults = !configuring && (live is null || live.Stages.Any(s => s.Stage.Id == VideoSummaryStageIds.Transcript && s.State != StageState.Pending));
+            var view = VideoSummaryTaskViewProjection.Project(_job, summary, viewData, allowResults);
+            lock (_gate) { if (_disposed) return; _snapshot = next; _view = view; }
             if (notify) Changed?.Invoke(this, EventArgs.Empty);
         }
         finally { Volatile.Write(ref _publishing, 0); }

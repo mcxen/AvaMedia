@@ -19,7 +19,7 @@ public sealed partial class VideoSummaryService
             job.Duration = info.Duration;
             bool isLong = LongVideoSummaryOrchestrator.UsesLongPath(info.Duration, options);
             var environmentKey = SummaryCheckpointStore.Hash(engine.Settings.OnlineAi);
-            stages.Configure(isLong, VideoSummaryRetry.SourceKey(job), environmentKey);
+            stages.Configure(isLong, VideoSummaryRetry.SourceKey(job), environmentKey, info);
             stages.Complete(VideoSummaryStageIds.ReadVideo, $"{MediaTime.Format(info.Duration)} · {info.Width} × {info.Height}");
             bool retry = requested == VideoSummaryStageIds.UnderstandSegments && isLong && previous?.EnvironmentKey == environmentKey
                 && await VideoSummaryRetry.CanRetryAsync(job, previous, ct).ConfigureAwait(false);

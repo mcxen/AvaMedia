@@ -18,7 +18,7 @@ public sealed partial class Job
 
 internal sealed record VideoSummaryStageSummary(TaskStageStatus[] Stages, DateTime? StartedUtc = null,
     DateTime? CompletedUtc = null, TaskRuntimeInfo? Runtime = null, string SourceKey = "", string EnvironmentKey = "",
-    string SignalHash = "", bool IsLong = false);
+    string SignalHash = "", bool IsLong = false, MediaInfo? Info = null);
 
 /// <summary>Execution-owned observations, persisted independently of any session.</summary>
 internal sealed class VideoSummaryTaskState : IDisposable
@@ -51,9 +51,9 @@ internal sealed class VideoSummaryTaskState : IDisposable
             return _summary with { Stages = stages };
         }
     }
-    internal void Configure(bool isLong, string sourceKey, string environmentKey)
+    internal void Configure(bool isLong, string sourceKey, string environmentKey, MediaInfo? info = null)
     {
-        lock (_gate) _summary = _summary with { IsLong = isLong, SourceKey = sourceKey, EnvironmentKey = environmentKey };
+        lock (_gate) _summary = _summary with { IsLong = isLong, SourceKey = sourceKey, EnvironmentKey = environmentKey, Info = info };
         if (!isLong)
             foreach (var id in new[] { VideoSummaryStageIds.PlanSegments, VideoSummaryStageIds.UnderstandSegments, VideoSummaryStageIds.ReduceChapters, VideoSummaryStageIds.VerifyChapters })
                 Complete(id, "短视频流程无需此阶段", StageState.Skipped);

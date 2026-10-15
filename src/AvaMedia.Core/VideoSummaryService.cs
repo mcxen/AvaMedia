@@ -112,7 +112,7 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             var transcript = cues.Count > 0 ? cues : job.SubtitleResult?.Cues ?? [];
             if (transcript.Count == 0 && frames.Count == 0 && sections.Count == 0 && notes.Count == 0 && groundingTrace.Count == 0) return;
             var summary = sections.FirstOrDefault(section => section.Title == "摘要")?.Text;
-            job.SummaryReport = new VideoSummaryReport(Path.GetFileName(job.Inputs[0]), job.Duration, source.Length > 0 ? source : "Whisper",
+            job.SummaryReport = new VideoSummaryReport(Path.GetFileName(job.Inputs[0]), job.Duration, source,
                 options.OutputLanguage, usedModels.ToArray(), transcript.Count, frames.ToArray(), sections.ToArray(), notes.ToArray(), ["部分结果 · 尚未完成全部分析"])
             { IsPartial = true, Transcript = transcript.ToArray(), Evidence = evidence.ToArray(), Sequences = sequences.ToArray(),
                 Keywords = outline.Keywords, Highlights = outline.Highlights, Chapters = outline.Chapters,
