@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
@@ -27,6 +28,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
     private string _backend = "CPU";
     private bool _visualWarmed;
     public string ModelId => _id;
+    public string? FallbackReason { get; private set; }
     public string Backend => _cpuFallback?.Backend ?? _backend;
     internal bool IsAlive => _cpuFallback?.IsAlive ?? (Volatile.Read(ref _released) == 0 && _owner.IsAlive);
     internal bool VisualWarmed => _visualWarmed;
@@ -48,7 +50,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         ct = lifetime.Token;
         try
         {
-            try { return await StartCoreAsync(store, id, true, ct, status, preparation).ConfigureAwait(false); }
+            try { return await StartCoreAsync(store, id, ComputeSettings.CurrentPreference!=ComputePreference.ForceCpu, ct, status, preparation).ConfigureAwait(false); }
             catch (Exception error) when (!ct.IsCancellationRequested
                 && error is InvalidOperationException or HttpRequestException or OperationCanceledException)
             {
@@ -75,6 +77,19 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             model = await store.AcquireAsync(id, ct, verificationProgress: preparation is null ? null
                 : (completed, total) => preparation(new("校验模型文件", completed, total))).ConfigureAwait(false);
             var executable = ModelStore.FindRuntime(runtime.Directory) ?? throw new InvalidDataException("缺少本地总结推理工具。");
+            var fingerprint = ComputeEnvironment.Fingerprint(executable);
+            var route = new ComputeRouter(ComputeEnvironment.Platform, ComputeEnvironment.Capabilities, fingerprint)
+                .Plan(new("本地总结", ComputeCapability.LlamaBackend, id, gpu ? ComputeSettings.CurrentPreference : ComputePreference.ForceCpu), status);
+            string? fallbackReason = gpu ? null : "设置或 GPU 失败重试要求使用 CPU。";
+            if (gpu && route.Chosen != ComputeBackend.Cpu)
+            {
+                var capability = await ComputeEnvironment.Capabilities.GetAsync(route.Requested, route.Chosen, fingerprint, new LlamaProbe(executable), ct).ConfigureAwait(false);
+                if (!capability.Available)
+                {
+                    fallbackReason = capability.Reason; route.ReportFailure(route.Chosen, fallbackReason, persist: false); gpu = false;
+                }
+            }
+            else gpu = false;
             var definition = ModelCatalog.Find(id);
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start(); var port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop();
@@ -98,7 +113,7 @@ public sealed class LocalSummaryModel : ISummaryToolModel
             preparation?.Invoke(new("加载本地模型"));
             owner = await OwnedModelProcess.StartAsync(executable, arguments, ct).ConfigureAwait(false);
             var process = owner.Process;
-            backend = new(owner, client, model, runtime, id, store, gpu, status);
+            backend = new(owner, client, model, runtime, id, store, gpu, status) { FallbackReason = fallbackReason };
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(TimeSpan.FromMinutes(2));
             while (true)
@@ -109,7 +124,16 @@ public sealed class LocalSummaryModel : ISummaryToolModel
                 {
                     using var probe = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token); probe.CancelAfter(TimeSpan.FromSeconds(2));
                     using var response = await client.GetAsync("health", probe.Token).ConfigureAwait(false);
-                    if (response.IsSuccessStatusCode) return backend;
+                    if (response.IsSuccessStatusCode)
+                    {
+                        if (gpu && backend.Backend == "CPU")
+                        {
+                            backend.FallbackReason = "已发现 GPU，但启动日志未确认任何层卸载到 GPU；实际按 CPU 报告。";
+                            ComputeRuntimeFormatter.Log("回退 CPU：" + backend.FallbackReason, status);
+                        }
+                        else route.ReportSuccess(backend.Backend);
+                        return backend;
+                    }
                 }
                 catch (HttpRequestException) { }
                 catch (OperationCanceledException) when (!deadline.IsCancellationRequested) { }
@@ -223,8 +247,12 @@ public sealed class LocalSummaryModel : ISummaryToolModel
         while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
         {
             var match = Regex.Match(line, @"offloaded (\d+)/\d+ layers to GPU");
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var layers) && layers > 0)
-                _backend = OperatingSystem.IsMacOS() ? "Metal / CPU" : "GPU / CPU";
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var layers))
+            {
+                if (layers > 0) _backend = OperatingSystem.IsMacOS() ? "Metal / CPU" : "Vulkan / CPU";
+                else FallbackReason = "llama.cpp 实际卸载 0 层到 GPU（可能显存不足），使用 CPU。";
+                ComputeRuntimeFormatter.Log("计算后端：llama.cpp " + _backend + "；" + line, _status);
+            }
         }
     }
     public async ValueTask DisposeAsync()

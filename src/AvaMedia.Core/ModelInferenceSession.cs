@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using Microsoft.ML.OnnxRuntime;
 
 namespace AvaMedia.Core;
@@ -10,6 +11,7 @@ internal sealed class ModelInferenceSession : IDisposable
     private readonly int? _batchSize;
     private readonly int? _imageSize;
     private InferenceSession _session;
+    private ComputeOutcome _outcome;
     public string Backend { get; private set; } = "CPU";
     public string? FallbackReason { get; private set; }
     public string InputName => _session.InputMetadata.Keys.First();
@@ -17,64 +19,11 @@ internal sealed class ModelInferenceSession : IDisposable
     public ModelInferenceSession(string path, string modelHash, int? batchSize = null, byte[]? modelData = null, int? imageSize = null)
     {
         _path = path; _batchSize = batchSize; _modelData = modelData; _imageSize = imageSize;
-        string? coreMlCache = null;
-        // Acceleration is always attempted. CPU is reserved for unavailable or failing providers.
-        try
-        {
-            using var options = Options();
-            var providers = OrtEnv.Instance().GetAvailableProviders();
-            if (OperatingSystem.IsMacOS() && providers.Contains("CoreMLExecutionProvider"))
-            {
-                // Separate caches by model content and runtime version, not the mutable file path.
-                coreMlCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "AvaMedia", "inference-cache", typeof(InferenceSession).Assembly.GetName().Version!.ToString(), modelHash,
-                    (batchSize is { } size ? $"batch-{size}" : "dynamic") + (imageSize is { } pixels ? $"-image-{pixels}" : ""));
-                Directory.CreateDirectory(coreMlCache);
-                options.AppendExecutionProvider("CoreML", new()
-                {
-                    ["MLComputeUnits"] = "ALL",
-                    ["ModelFormat"] = OperatingSystem.IsMacOSVersionAtLeast(12) ? "MLProgram" : "NeuralNetwork",
-                    ["RequireStaticInputShapes"] = "1",
-                    ["ModelCacheDirectory"] = coreMlCache
-                });
-                _session = CreateSession(options); Backend = "Core ML / CPU"; return;
-            }
-            if (OperatingSystem.IsWindows() && providers.Contains("DmlExecutionProvider"))
-            {
-                options.EnableMemoryPattern = false;
-                options.ExecutionMode = ExecutionMode.ORT_SEQUENTIAL;
-                options.AppendExecutionProvider_DML();
-                _session = CreateSession(options); Backend = "DirectML / CPU"; return;
-            }
-            FallbackReason = OperatingSystem.IsMacOS() ? "Core ML execution provider is unavailable."
-                : OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
-                : "No supported GPU execution provider on this platform.";
-        }
-        catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or DllNotFoundException
-            or EntryPointNotFoundException or IOException or UnauthorizedAccessException)
-        {
-            FallbackReason = error.Message;
-            if (coreMlCache is not null && OperatingSystem.IsMacOSVersionAtLeast(12))
-            {
-                try
-                {
-                    using var options = Options();
-                    options.AppendExecutionProvider("CoreML", new()
-                    {
-                        ["MLComputeUnits"] = "ALL", ["ModelFormat"] = "NeuralNetwork",
-                        ["RequireStaticInputShapes"] = "1", ["ModelCacheDirectory"] = coreMlCache
-                    });
-                    _session = CreateSession(options); Backend = "Core ML (NeuralNetwork) / CPU";
-                    FallbackReason = null;
-                    System.Diagnostics.Trace.TraceInformation("Core ML model format retry: {0}", error.Message);
-                    return;
-                }
-                catch (Exception retry) when (retry is OnnxRuntimeException or NotSupportedException or DllNotFoundException
-                    or EntryPointNotFoundException or IOException or UnauthorizedAccessException)
-                { FallbackReason = "MLProgram: " + error.Message + " · NeuralNetwork: " + retry.Message; }
-            }
-        }
-        _session = CpuSession();
+        var cache = Path.Combine(ComputeEnvironment.Folder, "inference-cache", typeof(InferenceSession).Assembly.GetName().Version!.ToString(), modelHash,
+            (batchSize is { } size ? $"batch-{size}" : "dynamic") + (imageSize is { } pixels ? $"-image-{pixels}" : ""));
+        var selection = OnnxProviderSelector.Create(Options, CreateSession, modelHash, cache);
+        _session = selection.Value; Backend = selection.Backend; FallbackReason = selection.FallbackReason;
+        _outcome = selection.Outcome;
     }
 
     public IDisposableReadOnlyCollection<DisposableNamedOnnxValue> Run(NamedOnnxValue input, CancellationToken ct)
@@ -87,6 +36,8 @@ internal sealed class ModelInferenceSession : IDisposable
     public void FallbackToCpu(string reason)
     {
         if (Backend == "CPU") return;
+        ComputeEnvironment.Capabilities.ReportFailure(_outcome.Requested, _outcome.ActualBackend, ComputeEnvironment.Fingerprint(), reason);
+        ComputeRuntimeFormatter.Log("回退 CPU：" + Backend + " 推理失败：" + reason);
         var replacement = CpuSession();
         var previous = _session;
         _session = replacement; Backend = "CPU"; FallbackReason = reason;

@@ -1,3 +1,4 @@
+using AvaMedia.Core.Compute;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
@@ -25,6 +26,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
     private InferenceSession _vision, _text;
     private float[][] _labels = [];
     private string _backend;
+    private ComputeOutcome? _outcome;
     private bool _disposed;
     public string Backend => Volatile.Read(ref _backend);
     public string? FallbackReason { get; private set; }
@@ -55,31 +57,22 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                 var tokenizer = GemmaTokenizer.Load(Path.Combine(lease.Directory, ModelCatalog.GemmaTokenizerFile));
                 ct.ThrowIfCancellationRequested();
                 status?.Invoke("加载嵌入模型");
-                string? fallback = null; var backend = "CPU";
-                if (AcceleratedOptions() is { } accelerated)
+                var cache = Path.Combine(ComputeEnvironment.Folder, "inference-cache", typeof(InferenceSession).Assembly.GetName().Version!.ToString(),
+                    ModelCatalog.Find(ModelCatalog.EmbeddingId).Files.First(file => file.Path == ModelCatalog.GemmaTextFile).Sha256);
+                var selection = OnnxProviderSelector.Create(CpuOptions, options =>
                 {
+                    InferenceSession? first = null;
                     try
                     {
-                        using (accelerated.Options)
-                        {
-                            vision = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), accelerated.Options);
-                            text = new(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), accelerated.Options);
-                        }
-                        backend = accelerated.Name;
+                        first = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), options);
+                        return (Vision: first, Text: new InferenceSession(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), options));
                     }
-                    catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or DllNotFoundException or EntryPointNotFoundException)
-                    { vision?.Dispose(); text?.Dispose(); vision = text = null; fallback = error.Message; }
-                }
-                else fallback = OperatingSystem.IsWindows() ? "DirectML execution provider is unavailable."
-                    : OperatingSystem.IsMacOS() ? "Core ML execution provider is unavailable." : "No supported GPU execution provider on this platform.";
-                if (vision is null || text is null)
-                {
-                    using var options = CpuOptions();
-                    vision = new(Path.Combine(lease.Directory, ModelCatalog.GemmaVisionFile), options);
-                    text = new(Path.Combine(lease.Directory, ModelCatalog.GemmaTextFile), options);
-                }
+                    catch { first?.Dispose(); throw; }
+                }, ModelCatalog.EmbeddingId, cache);
+                vision = selection.Value.Vision; text = selection.Value.Text;
+                var backend = selection.Backend; var fallback = selection.FallbackReason;
                 ct.ThrowIfCancellationRequested();
-                var embedding = new GemmaMediaEmbedding(lease, tokenizer, vision, text, backend, ownsModel) { FallbackReason = fallback };
+                var embedding = new GemmaMediaEmbedding(lease, tokenizer, vision, text, backend, ownsModel) { FallbackReason = fallback, _outcome = selection.Outcome };
                 vision = text = null; lease = null!;
                 // The first requested label/image executes the graph and retains the existing CPU fallback.
                 return embedding;
@@ -90,38 +83,6 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                 throw;
             }
         }, ct);
-
-    private static (string Name, SessionOptions Options)? AcceleratedOptions()
-    {
-        try
-        {
-            var providers = OrtEnv.Instance().GetAvailableProviders();
-            var options = CpuOptions();
-            try
-            {
-                if (OperatingSystem.IsWindows() && providers.Contains("DmlExecutionProvider"))
-                {
-                    options.EnableMemoryPattern = false; options.ExecutionMode = ExecutionMode.ORT_SEQUENTIAL;
-                    options.AppendExecutionProvider_DML();
-                    return ("DirectML / CPU", options);
-                }
-                if (OperatingSystem.IsMacOS() && providers.Contains("CoreMLExecutionProvider"))
-                {
-                    var model = ModelCatalog.Find(ModelCatalog.EmbeddingId);
-                    var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AvaMedia", "inference-cache",
-                        typeof(InferenceSession).Assembly.GetName().Version!.ToString(), model.Files.First(file => file.Path == ModelCatalog.GemmaTextFile).Sha256);
-                    Directory.CreateDirectory(cache);
-                    options.AppendExecutionProvider("CoreML", new() { ["MLComputeUnits"] = "ALL", ["ModelFormat"] = "MLProgram", ["ModelCacheDirectory"] = cache });
-                    return ("Core ML / CPU", options);
-                }
-            }
-            catch (Exception error) when (error is OnnxRuntimeException or NotSupportedException or EntryPointNotFoundException
-                or IOException or UnauthorizedAccessException) { }
-            options.Dispose();
-        }
-        catch (Exception error) when (error is OnnxRuntimeException or DllNotFoundException or TypeInitializationException) { }
-        return null;
-    }
 
     private static SessionOptions CpuOptions()
     {
@@ -246,6 +207,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                 try { return run(); }
                 catch (OnnxRuntimeException error) when (Backend != "CPU" && !ct.IsCancellationRequested)
                 {
+                    if (_outcome is { } outcome) ComputeEnvironment.Capabilities.ReportFailure(outcome.Requested, outcome.ActualBackend, ComputeEnvironment.Fingerprint(), error.Message);
                     // Accelerated providers may reject quantized contrib ops at run time; continue on CPU.
                     using var options = CpuOptions();
                     var vision = new InferenceSession(Path.Combine(_model.Directory, ModelCatalog.GemmaVisionFile), options);
@@ -253,7 +215,7 @@ public sealed class GemmaMediaEmbedding : IAsyncDisposable
                     try { text = new(Path.Combine(_model.Directory, ModelCatalog.GemmaTextFile), options); }
                     catch { vision.Dispose(); throw; }
                     _vision.Dispose(); _text.Dispose(); _vision = vision; _text = text;
-                    Volatile.Write(ref _backend, "CPU"); FallbackReason = error.Message;
+                    Volatile.Write(ref _backend, "CPU"); FallbackReason = error.Message; ComputeRuntimeFormatter.Log("回退 CPU：Gemma 推理失败：" + error.Message);
                     return run();
                 }
             }, ct).ConfigureAwait(false);
