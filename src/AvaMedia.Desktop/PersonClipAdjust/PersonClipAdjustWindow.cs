@@ -82,15 +82,18 @@ internal sealed partial class PersonClipAdjustWindow : Window
         _format.SelectedItem = QuickClipBatch.Presets.Contains(host.Preset) ? host.Preset : PersonClipTaskOptions.DefaultExportPreset;
         Avalonia.Automation.AutomationProperties.SetName(_format, Localization.Text("输出格式"));
 
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto,Auto") };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto") };
         root.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcMsGap"));
         root.Bind(MarginProperty, new DynamicResourceExtension("AcMsBodyMargin"));
         root.Children.Add(BuildHeader());
         Grid.SetRow(BuildStale(), 1); root.Children.Add(_stale);
         var body = MsUi.Columns("288,*,272", _listSlot, _previewSlot, _inspectorSlot);
+        body.RowDefinitions = new("*,Auto");
+        body.Bind(Grid.RowSpacingProperty, new DynamicResourceExtension("AcMsGap"));
+        Grid.SetRowSpan(_listSlot, 2);
+        Grid.SetRow(_timelineSlot, 1); Grid.SetColumn(_timelineSlot, 1); Grid.SetColumnSpan(_timelineSlot, 2); body.Children.Add(_timelineSlot);
         Grid.SetRow(body, 2); root.Children.Add(body);
-        var timeline = _timelineSlot; Grid.SetRow(timeline, 3); root.Children.Add(timeline);
-        var footer = BuildFooter(); Grid.SetRow(footer, 4); root.Children.Add(footer);
+        var footer = BuildFooter(); Grid.SetRow(footer, 3); root.Children.Add(footer);
         Content = WindowChrome.WrapDialog(this, root);
         BuildListContent(); BuildPreviewContent(); BuildInspectorContent(); BuildTimelineContent();
 

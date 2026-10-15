@@ -15,6 +15,15 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == "adjust")
+        {
+            if (args.Length is < 2 or > 3)
+            {
+                Console.Error.WriteLine("Usage: AvaMedia.MultiStageCapture adjust <output.png> [default|drag|hover|menu|stale]");
+                return 2;
+            }
+            return AdjustCapture.Run(args[1], args.ElementAtOrDefault(2) ?? "default");
+        }
         if (args.Length >= 3 && args[0] == "seed") return Seed(args[1], args[2..]);
         if (args.Length >= 3 && args[0] == "real") return Real(args[1..]);
         if (args.Length >= 3 && args[0] == "tools") return Tools(args[1..]);
