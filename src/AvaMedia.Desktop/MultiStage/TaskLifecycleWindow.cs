@@ -79,6 +79,7 @@ internal class TaskLifecycleWindow : Window
     private readonly ContentPresenter _presenter = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch,
         VerticalContentAlignment = VerticalAlignment.Stretch };
     private readonly Dictionary<string, TaskPageViewModel> _views = [];
+    private readonly ContentControl _preparation = new() { IsVisible = false };
     private ITaskLifecycle? _lifecycle;
     private string? _currentId, _viewedId;
     private bool _syncing;
@@ -93,14 +94,16 @@ internal class TaskLifecycleWindow : Window
         Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new("avares://AvaMedia.Desktop/Styles/MultiStageStyles.axaml") });
         Width = 1240; Height = 800; MinWidth = 1000; MinHeight = 680;
         Bind(BackgroundProperty, new DynamicResourceExtension("UiCanvas"));
-        var root = new Grid { RowDefinitions = new("Auto,Auto,*,Auto") };
+        var root = new Grid { RowDefinitions = new("Auto,Auto,Auto,*,Auto") };
         Shell.Children.Remove(Shell.Header); root.Children.Add(Shell.Header);
         _tabs.Margin = new Thickness(20, 0, 20, 12);
         Avalonia.Automation.AutomationProperties.SetName(_tabs, Localization.Text("任务页"));
         Grid.SetRow(_tabs, 1); root.Children.Add(_tabs);
         _presenter.Bind(MarginProperty, new DynamicResourceExtension("AcMsBodyMargin"));
-        Grid.SetRow(_presenter, 2); root.Children.Add(_presenter);
-        Grid.SetRow(ActionBar, 3); root.Children.Add(ActionBar);
+        _preparation.Bind(MarginProperty, new DynamicResourceExtension("AcMsBodyMargin"));
+        Grid.SetRow(_preparation, 2); root.Children.Add(_preparation);
+        Grid.SetRow(_presenter, 3); root.Children.Add(_presenter);
+        Grid.SetRow(ActionBar, 4); root.Children.Add(ActionBar);
         Content = WindowChrome.WrapDialog(this, root);
         _tabs.SelectionChanged += (_, _) =>
         {
@@ -109,6 +112,12 @@ internal class TaskLifecycleWindow : Window
         };
         Closed += (_, _) => { _closed = true; if (_lifecycle is not null) _lifecycle.Changed -= LifecycleChanged; };
     }
+    protected void SetPreparation(Control content, bool visible)
+    {
+        _preparation.Content = content;
+        _preparation.IsVisible = visible && _viewedId == "process";
+    }
+
     protected void SetLifecycle(ITaskLifecycle lifecycle, IEnumerable<TaskPageViewModel> views)
     {
         if (_lifecycle is not null) _lifecycle.Changed -= LifecycleChanged;

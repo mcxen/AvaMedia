@@ -175,6 +175,10 @@ public partial class MainWindow
     {
         if (!CanManageTasks) return;
         var batch = requested.Where(job => _jobs.Contains(job) && CanStartTask(job)).Distinct().ToArray(); if (batch.Length == 0) return;
+        foreach (var job in batch)
+            if (!await PrepareLifecycleEntryAsync(job)) return;
+        batch = batch.Where(job => _jobs.Contains(job) && CanStartTask(job)).ToArray();
+        if (batch.Length == 0 || _closing) return;
         if (_queueSessionActive)
         {
             var added = _queue.Enqueue(batch);

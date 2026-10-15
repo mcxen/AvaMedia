@@ -67,6 +67,8 @@ internal sealed class SubtitleLifecycleWindow : MultiStageTaskWindow
     {
         if (!_ready || _closed) return;
         var state = _pages.Pages[1].State;
+        if (state == PageState.Pending && _job.Options.Transcription is { } speech)
+            _folder = speech.ReviewOutputToSource ? Path.GetDirectoryName(_job.Inputs[0])! : speech.ReviewOutputFolder ?? _folder;
         var editable = state == PageState.AwaitingUser && _job.State == JobState.AwaitingUser;
         var hasVideo = _task.View.Info?.HasVideo == true;
         if (!hasVideo) _video = false;

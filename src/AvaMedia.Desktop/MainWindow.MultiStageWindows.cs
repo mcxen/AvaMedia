@@ -35,6 +35,10 @@ public partial class MainWindow
                     () => { Save(); Refresh(); return Task.CompletedTask; },
                     async () => { job.State = JobState.Waiting; Save(); Refresh(); await RequestTaskRunAsync(job); })
                 : new MultiStageTaskWindow(session, content, label, Engine);
+        window.ConfigurePreparation(job, _settings,
+            () => job.State == JobState.Waiting && !_queue.IsScheduled(job) && !_queue.IsExecuting(job)
+                && (job.Lifecycle is null || job.Lifecycle.Current.Page.Id == "process" && job.Lifecycle.Current.State == PageState.Pending),
+            () => { Save(); Refresh(); });
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);
