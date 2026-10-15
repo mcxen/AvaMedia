@@ -53,12 +53,11 @@ public sealed class SubtitleReviewWindow : Window
     private readonly TextBlock _cueCount = Ui.ComponentText("", "caption");
     private readonly TextBox _start = Ui.ComponentInput(), _end = Ui.ComponentInput(), _text = Ui.ComponentInput();
     private readonly TextBlock _notice = Ui.ComponentStatus();
-    private readonly ComboBox _format;
     private readonly TextBox _folder;
     private readonly CheckBox _sourceFolder;
     private readonly Button _export, _retry;
     private readonly Grid _editor = new() { RowDefinitions = new("*,Auto,Auto,Auto"), RowSpacing = 6 };
-    private readonly SubtitleStyleEditor _style;
+    private readonly SubtitleOutputEditor _outputOptions;
     private readonly TimeRangePicker _timing = new();
     private readonly MediaPreviewPanel _preview;
     private double _duration = 1;
@@ -158,17 +157,14 @@ public sealed class SubtitleReviewWindow : Window
         });
         removeCue.Classes.Add("field-action"); cueActions.Children.Add(removeCue);
         Grid.SetRow(cueActions, 3); _editor.Children.Add(cueActions);
-        _style = new SubtitleStyleEditor(request.Options) { Compact = true };
-        var styleScroll = new ScrollViewer { Content = _style, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
-        var output = new Grid { ColumnDefinitions = new("*,*,Auto"), ColumnSpacing = 8 };
-        _format = Ui.ComponentCombo(["SRT", "ASS", "原格式视频", "MP4", "MKV"], "SRT");
-        AutomationProperties.SetName(_format, "输出内容"); ToolTip.SetTip(_format, "字幕文件 · SRT、样式字幕 · ASS、带字幕视频 · MP4、带字幕视频 · MKV");
-        _format.SelectedIndex = Math.Max(0, Array.IndexOf(new[] { "srt", "ass", SourceOutput.Original, "mp4", "mkv" }, request.Options.Format));
-        output.Children.Add(_format);
+        _outputOptions = new SubtitleOutputEditor(request.Options, editing
+            ? new(request.Options.Format is not ("srt" or "ass" or "vtt"), request.Options.Format) : null);
+        _outputOptions.SetVideoAvailable(request.Files.All(VideoFormats.IsVideo));
+        var output = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         _folder = Ui.ComponentInput(request.OutputFolder); _folder.IsReadOnly = true; Localization.SetIsUserText(_folder, true);
         Avalonia.Automation.AutomationProperties.SetName(_folder, "字幕保存位置");
         _sourceFolder = new CheckBox { Classes = { "ac" }, Content = "源目录", IsChecked = request.OutputToSource }; ToolTip.SetTip(_sourceFolder, "输出至源文件目录");
-        Grid.SetColumn(_folder, 1); output.Children.Add(_folder);
+        output.Children.Add(_folder);
         var browse = Ui.Button("浏览…", async () =>
         {
             if (await Ui.Folder(this, "选择输出目录") is {} folder) { _folder.Text = folder; _sourceFolder.IsChecked = false; }
@@ -176,19 +172,19 @@ public sealed class SubtitleReviewWindow : Window
         browse.Classes.Add("field-action");
         var folderActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         folderActions.Children.Add(_sourceFolder); folderActions.Children.Add(browse);
-        Grid.SetColumn(folderActions, 2); output.Children.Add(folderActions);
+        Grid.SetColumn(folderActions, 1); output.Children.Add(folderActions);
         void RefreshFolder() => _folder.IsEnabled = browse.IsEnabled = _sourceFolder.IsChecked != true;
         _sourceFolder.IsCheckedChanged += (_, _) => RefreshFolder(); RefreshFolder();
-        _format.SelectionChanged+=(_,_)=>styleScroll.IsEnabled=_format.SelectedIndex!=0;styleScroll.IsEnabled=_format.SelectedIndex!=0;
         Grid.SetColumn(_editor, 1); content.Children.Add(_editor);
-        Grid.SetColumn(styleScroll, 2); content.Children.Add(styleScroll);
+        Grid.SetColumn(_outputOptions, 2); content.Children.Add(_outputOptions);
         Grid.SetRow(content, 1); root.Children.Add(content); Grid.SetRow(output, 2); root.Children.Add(output);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 }; footer.Children.Add(_notice);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _retry = Ui.Button("后台重新识别", async () => await RecognizeAsync()); actions.Children.Add(_retry);
         var cancel = Ui.DialogButton("取消", () => Close(null)); cancel.MinWidth = 88; actions.Children.Add(cancel);
-        _export = Ui.DialogButton(editing ? "保存修改" : "导出字幕", Export); _export.Classes.Add("primary");_export.IsDefault=true;actions.Children.Add(_export);
-        ToolExecution.Configure(this, _export, "导出字幕", editing);
+        _export = Ui.DialogButton(_outputOptions.ActionText, Export); _export.Classes.Add("primary");_export.IsDefault=true;actions.Children.Add(_export);
+        ToolExecution.Configure(this, _export, _outputOptions.ActionText, editing, () => _outputOptions.ActionText);
+        _outputOptions.Changed += () => _export.Content = Localization.Text(_outputOptions.ActionText);
         Grid.SetColumn(actions, 1); footer.Children.Add(actions); Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
         _files.SelectionChanged += async (_, _) => await SelectSourceAsync();
         _cues.SelectionChanged += (_, _) =>
@@ -196,7 +192,7 @@ public sealed class SubtitleReviewWindow : Window
             _editor.DataContext = _cues.SelectedItem; UpdateTiming();
             Refresh();
         };
-        Closed += (_, _) => { _lifetime.Cancel(); _style.Dispose(); _preview.Dispose(); };
+        Closed += (_, _) => { _lifetime.Cancel(); _outputOptions.Dispose(); _preview.Dispose(); };
         RefreshFiles(); _files.SelectedIndex = 0; Refresh();
     }
 
@@ -256,8 +252,7 @@ public sealed class SubtitleReviewWindow : Window
             if (sources.Length == 0) throw new ArgumentException("请先识别或添加字幕。");
             var options = sources.Select(source =>
             {
-                CheckSource(source); var edit = (_request.InputOptions?.ElementAtOrDefault(Array.IndexOf(_sources,source))??_request.Options).Clone(); edit.Format = new[] { "srt", "ass", SourceOutput.Original, "mp4", "mkv" }[_format.SelectedIndex];
-                if (edit.Format != "srt") _style.ReadInto(edit);
+                CheckSource(source); var edit = (_request.InputOptions?.ElementAtOrDefault(Array.IndexOf(_sources,source))??_request.Options).Clone(); _outputOptions.ReadInto(edit);
                 edit.Transcription ??= new(); edit.Transcription.RecognitionOnly = false; edit.Transcription.ReviewedCues = ReadCues(source);
                 edit.Transcription.ReviewedSourceLength = source.Length; edit.Transcription.ReviewedSourceWriteUtc = source.WriteUtc;
                 edit.Transcription.Validate(); return edit;
@@ -293,7 +288,7 @@ public sealed class SubtitleReviewWindow : Window
     {
         _retry.IsVisible = _recognize is not null; _retry.IsEnabled = !_busy;
         _export.IsEnabled = !_busy && _sources.Any(source => source.Cues?.Count > 0); _editor.IsEnabled = !_busy && _cues.SelectedItem is CueDraft;
-        _format.IsEnabled = !_busy;
+        _outputOptions.IsEnabled = !_busy;
         var count = Selected?.Cues?.Count ?? 0;
         _cueEmpty.IsVisible = count == 0;
         _cueCount.Text = count > 0 ? Localization.Format($"{count} 条") : "";

@@ -80,17 +80,19 @@ internal static class ToolExecution
         Refresh();
     }
 
-    public static void Configure(Window owner, Button button, string action, bool editing = false)
+    public static void Configure(Window owner, Button button, string action, bool editing = false, Func<string>? actionText = null)
     {
         StableLayout.Reserve(button, action, "加入队列", "保存修改", "检查文件…");
         if (editing) return;
         var choice = new CheckBox { Content = "仅加入队列", VerticalAlignment = VerticalAlignment.Center };
         Choices.Add(owner, () => choice.IsChecked != true);
-        void Refresh() => button.Content = Localization.Text(choice.IsChecked == true ? "加入队列" : action);
+        void Refresh() => button.Content = Localization.Text(actionText?.Invoke() ?? (choice.IsChecked == true ? "加入队列" : action));
         choice.IsCheckedChanged += (_, _) => Refresh();
         button.PropertyChanged += (_, change) =>
         {
-            if (change.Property == ContentControl.ContentProperty && Equals(button.Content, Localization.Text("加入队列")) && choice.IsChecked != true) Refresh();
+            if (change.Property == ContentControl.ContentProperty
+                && (actionText is not null ? !Equals(button.Content, Localization.Text(actionText()))
+                    : Equals(button.Content, Localization.Text("加入队列")) && choice.IsChecked != true)) Refresh();
         };
         owner.Opened += (_, _) =>
         {
