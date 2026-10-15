@@ -8,6 +8,7 @@ public sealed class MediaEngine : IMediaEngine
 {
     public AppSettings Settings { get; }
     private readonly MediaPreviewCache _previews = new();
+    private readonly ThroughputModel _throughput = new();
     private readonly HashSet<string> _softwareThumbnailSources = new(StringComparer.Ordinal);
     private readonly Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>> _hardwareTest;
     public MediaEngine(AppSettings settings,Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>>? hardwareTest=null)
@@ -636,11 +637,32 @@ public sealed class MediaEngine : IMediaEngine
                     (plans.Values.Any(plan=>plan.EncoderPixelFormat is not null)?"画面直接传入硬件编码器。":"画面下载后使用现有滤镜与硬件编码器。"));
             return encoded;
         }
-        Task<ProcessResult> Encode(Job draft,IReadOnlyDictionary<int,HardwareDecodePlan>? decoding)=>ProcessRunner.Run(FFmpeg,BuildArguments(draft,infos,decoding),ct,line=>
+        async Task<ProcessResult> Encode(Job draft,IReadOnlyDictionary<int,HardwareDecodePlan>? decoding)
         {
-            if(line.StartsWith("out_time_us=") && long.TryParse(line[12..],out var us) && job.Duration>0)progress(Math.Clamp(us/1000000d/job.Duration*100,0,99.9));
-        },finalizeOnCancel:keepProcessedOutput);
+            var backend=FfmpegBackend.ForEncoder(draft.Options.VideoCodec);
+            var key=new ThroughputKey(job.FeatureId,backend,ThroughputModel.ResolutionBand(effective.Width>0?effective.Width:infos[0].Width,effective.Height>0?effective.Height:infos[0].Height),draft.Options.VideoCodec);
+            var estimator=new PriorAwareProgressEstimator(_throughput,key,job.Duration);
+            var watch=System.Diagnostics.Stopwatch.StartNew();
+            job.SetComputeEstimate(estimator.Update(0,TimeSpan.Zero));
+            hardwareLog.AppendLine($"计算吞吐先验：{ComputeRuntimeFormatter.Name(backend)} {_throughput.Rate(key):0.###} 媒体秒/秒；{job.GetComputeEstimate()?.Text}。");
+            var encoded=await ProcessRunner.Run(FFmpeg,BuildArguments(draft,infos,decoding),ct,line=>
+            {
+                if(line.StartsWith("out_time_us=") && long.TryParse(line[12..],out var us) && job.Duration>0)
+                {
+                    var percent=Math.Clamp(us/1000000d/job.Duration*100,0,99.9);
+                    job.SetComputeEstimate(estimator.Update(percent,watch.Elapsed));progress(percent);
+                }
+            },finalizeOnCancel:keepProcessedOutput).ConfigureAwait(false);
+            if(encoded.ExitCode==0 && !encoded.Interrupted)
+            {
+                _throughput.Observe(key,job.Duration,watch.Elapsed);
+                job.SetComputeEstimate(estimator.Update(100,watch.Elapsed));
+                hardwareLog.AppendLine($"计算实测吞吐：{ComputeRuntimeFormatter.Name(backend)} {job.Duration/Math.Max(.001,watch.Elapsed.TotalSeconds):0.###} 媒体秒/秒。");
+            }
+            return encoded;
+        }
     }
+
     public static List<string> BuildArguments(Job job,IReadOnlyList<MediaInfo> infos,IReadOnlyDictionary<int,HardwareDecodePlan>? hardwareDecoding=null)
     {
         if(job.Options.PreserveSourceAttributes || job.Options.LosslessRotation is not null)return SourceVideoGpu.BuildArguments(job,infos);
