@@ -49,9 +49,24 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
+        var stages = new MediaClassificationTaskState(job);
+        try
+        {
+            await ExecuteCoreAsync(job, progress, stages, ct).ConfigureAwait(false);
+            stages.Finish(JobState.Completed);
+        }
+        catch (OperationCanceledException) { stages.Finish(JobState.Cancelled, "已取消"); throw; }
+        catch (Exception error) { stages.Finish(JobState.Failed, error.Message); throw; }
+    }
+
+    private async Task ExecuteCoreAsync(Job job, Action<double> progress, MediaClassificationTaskState stages, CancellationToken ct)
+    {
         using var privacyCancellation = new PrivacyCancellation(engine.Settings, ct);
         ct = privacyCancellation.Token;
         Validate(job);
+        stages.Update($"已检查 {job.Inputs.Length} 个文件", job.Inputs.Length, job.Inputs.Length, "个文件");
+        stages.Complete(MediaClassificationStageIds.ScanFiles, $"已检查 {job.Inputs.Length} 个文件");
+        stages.Enter(MediaClassificationStageIds.PrepareModel);
         var spec = job.Options.MediaTag!;
         job.MediaTagResult = null;
         AiTaskResults.DeleteResult(job, "tags");
@@ -74,12 +89,16 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
             await _models.DownloadAsync(id, new DownloadProgress(value =>
             {
                 activity.Stage(job.ProgressDetail, value.Received, value.Total, "字节");
+                stages.Update(job.ProgressDetail, value.Received, value.Total, "字节");
                 progress(Math.Max(job.Progress, value.Percent * .05));
             }), ct).ConfigureAwait(false);
         }
 
         var report = new InlineProgress(update =>
         {
+            stages.Observe(update);
+            if (update.StageId == MediaClassificationStageIds.AnalyzeItems)
+                stages.Complete(MediaClassificationStageIds.PrepareModel, "标签模型已就绪");
             if (update.PreviewResult is { } preview) job.MediaTagResult = MediaPrivacy.Filter(preview, PrivateEnabled()) with { IsPartial = true };
             if (update.Result is { } completed) job.MediaTagResult = MediaPrivacy.Filter(completed, PrivateEnabled());
             if (update.Activity is { } snapshot)
@@ -105,6 +124,9 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
             }, report, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
         if (results.Count == 0) throw new InvalidDataException("未能完成标签分析。");
+        stages.Update("已分析 1 个文件", 1, 1, "个文件");
+        stages.Complete(MediaClassificationStageIds.AnalyzeItems, "已分析 1 个文件");
+        stages.Enter(MediaClassificationStageIds.WriteResults);
         var result = MediaPrivacy.Filter(results[0], PrivateEnabled());
         await AiTaskResults.SaveAsync(spec.WriteTextReport ? AiTaskResults.PathFor(job, "tags") : job.Output, result, ct).ConfigureAwait(false);
         job.MediaTagResult = result;
@@ -127,6 +149,8 @@ public sealed class MediaTagJobService(IMediaEngine engine, ModelStore? models =
         if (result.SceneError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "")
             + (result.SceneSkipped ? "未下载语义模型，已跳过场景" : "语义识别失败");
         if (result.CaptionError is not null) job.ProgressDetail = (job.ProgressDetail.Length > 0 ? job.ProgressDetail + " · " : "") + "画面描述失败";
+        stages.Update(job.Output, 1, 1, "个文件");
+        stages.Complete(MediaClassificationStageIds.WriteResults, job.Output);
         activity.Finish("标签分析完成"); progress(100);
     }
 

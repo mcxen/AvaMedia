@@ -18,6 +18,18 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
 
     public async Task ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
     {
+        var stages = new MediaClassificationTaskState(job);
+        try
+        {
+            await ExecuteCoreAsync(job, progress, stages, ct).ConfigureAwait(false);
+            stages.Finish(JobState.Completed);
+        }
+        catch (OperationCanceledException) { stages.Finish(JobState.Cancelled, "已取消"); throw; }
+        catch (Exception error) { stages.Finish(JobState.Failed, error.Message); throw; }
+    }
+
+    private async Task ExecuteCoreAsync(Job job, Action<double> progress, MediaClassificationTaskState stages, CancellationToken ct)
+    {
         Validate(job);
         // Resuming keeps the elapsed time already spent.
         job.ClassificationStartedUtc = job.ClassificationStartedUtc is { } started && job.ClassificationFinishedUtc is { } finished
@@ -43,8 +55,11 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             var pending = new List<string>();
             var excluded = spec.ExcludedPaths.ToHashSet(BatchRename.PathComparer);
             var processed = new HashSet<string>(BatchRename.PathComparer);
+            var writes = 0; var classifications = 0; var scanned = 0;
             foreach (var path in job.Inputs)
             {
+                ct.ThrowIfCancellationRequested();
+                stages.Update(Path.GetFileName(path), ++scanned, job.Inputs.Length, "个文件");
                 var file = files.GetValueOrDefault(path) ?? new(path);
                 if (excluded.Contains(path)) { files[path] = file with { Pending = false }; continue; }
                 if (file.Result is { } completed && !file.Pending && file.Error is null)
@@ -68,6 +83,8 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     ? (80d * done + 15d * appearanceReady.Count) / total : 100d * done / total, 0, 100));
             }
             Publish();
+            stages.Update($"待分析 {pending.Count} 个，复用 {total - pending.Count} 个，排除 {job.Inputs.Length - total} 个", job.Inputs.Length, job.Inputs.Length, "个文件");
+            stages.Complete(MediaClassificationStageIds.ScanFiles, $"待分析 {pending.Count} 个，复用 {total - pending.Count} 个");
             var sinceGrouping = 0; var groupedOnce = false;
             async Task RegroupAsync(bool force = false)
             {
@@ -79,11 +96,16 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 job.ProgressDetail = "按相似服装分组"; progress(job.Progress);
                 var before = FolderClassificationInsights.Groups(job.ClassificationSnapshot!.Files, null)
                     .ToDictionary(group => group.RuleId + "/" + group.CategoryId, group => group.Count);
+                var resumeStage = stages.CurrentStageId;
+                stages.Enter(MediaClassificationStageIds.PlanClassification, "按相似服装分组");
                 var grouped = FolderOutfitClassification.Apply(ready.Select(file => file.Result!), rules, PrivateEnabled(), ct);
+                stages.Update($"已分组 {grouped.Length} 个文件", grouped.Length, ready.Length, "个文件");
+                stages.Enter(MediaClassificationStageIds.WriteResults, "保存分组检查点");
                 foreach (var result in grouped)
                 {
                     var file = files[result.Media.Path] with { Result = result };
                     await FolderClassificationTaskStore.SaveFileAsync(job, file, ct).ConfigureAwait(false);
+                    stages.Update("保存分组检查点", ++writes, unit: "次保存");
                     files[file.Path] = file;
                 }
                 sinceGrouping = 0; groupedOnce = true; Publish();
@@ -91,17 +113,20 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 job.ClassificationRegroup = new((job.ClassificationRegroup?.Ordinal ?? 0) + 1,
                     after.ToDictionary(group => group.RuleId + "/" + group.CategoryId, group => group.Added), DateTime.UtcNow);
                 FolderClassificationTaskStore.SaveRegroup(job, job.ClassificationRegroup);
+                if (resumeStage.Length > 0) stages.Enter(resumeStage);
             }
             // Recover cached tag results before waiting for JoyTag, which another queue job may be using.
             var missingAppearance = byOutfit ? files.Values.Where(file => !excluded.Contains(file.Path) && !file.Pending
                 && file.Error is null && file.Result is not null && !appearanceReady.Contains(file.Path)).ToArray() : [];
             async Task<OutfitAppearanceService> PrepareAppearanceAsync()
             {
+                stages.Enter(MediaClassificationStageIds.PrepareModel, "准备服装模型");
                 var store = new ModelStore();
                 foreach (var model in new[] { ModelCatalog.OutfitId, ModelCatalog.OutfitFeaturesId })
                     if (!await store.IsInstalledAsync(model, ct: ct).ConfigureAwait(false))
                         await store.DownloadAsync(model, new InlineProgress<ModelDownloadProgress>(update =>
                         {
+                            stages.Update(update.Stage, update.Received, update.Total, "字节");
                             job.ProgressDetail = update.Stage;
                             job.Activity = new("下载服装模型", "", DateTime.UtcNow, DateTime.UtcNow)
                             { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName };
@@ -109,7 +134,9 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                         }), ct).ConfigureAwait(false);
                 job.Activity = new("加载服装模型", "MediaPipe / DINOv2", DateTime.UtcNow, DateTime.UtcNow);
                 job.ProgressDetail = "加载服装模型"; progress(job.Progress);
-                return await OutfitAppearanceService.CreateAsync(engine, store, ct).ConfigureAwait(false);
+                var prepared = await OutfitAppearanceService.CreateAsync(engine, store, ct).ConfigureAwait(false);
+                stages.Runtime("MediaPipe / DINOv2", prepared.Backend);
+                return prepared;
             }
             using var appearance = byOutfit && (missingAppearance.Length > 0 || pending.Count > 0)
                 ? await PrepareAppearanceAsync().ConfigureAwait(false) : null;
@@ -118,6 +145,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             {
                 if (!byOutfit || file.Error is not null || file.Result is not { } result || appearanceReady.Contains(file.Path)) return;
                 await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+                stages.Enter(MediaClassificationStageIds.AnalyzeItems, "识别服装区域 · " + Path.GetFileName(file.Path));
                 job.Activity = new("识别服装区域", "MediaPipe / DINOv2", DateTime.UtcNow, DateTime.UtcNow)
                 { Detail = Path.GetFileName(file.Path), Backend = appearance!.Backend };
                 job.ProgressDetail = "识别服装区域 · " + Path.GetFileName(file.Path); progress(job.Progress);
@@ -126,6 +154,8 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 {
                     var media = await appearance!.AnalyzeAsync(result.Media, (current, total) =>
                     {
+                        stages.Update("识别服装区域 · " + Path.GetFileName(file.Path), current, total, "帧");
+                        stages.Runtime("MediaPipe / DINOv2", appearance.Backend, appearance.FallbackReason ?? "");
                         job.Activity = job.Activity! with { Backend = appearance.Backend,
                             Detail = Path.GetFileName(file.Path) + (appearance.FallbackReason is { } reason ? " · " + reason : "") };
                         if (appearance.FallbackReason is { } fallback && fallback != appearanceFallback)
@@ -136,8 +166,10 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     if (OutfitAppearanceService.IsComplete(media)) appearanceReady.Add(file.Path);
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
-                { updated = file with { Error = error.Message }; }
+                { stages.Warning(error.Message); updated = file with { Error = error.Message }; }
+                stages.Enter(MediaClassificationStageIds.WriteResults, "保存服装特征检查点");
                 await FolderClassificationTaskStore.SaveFileAsync(job, updated, ct).ConfigureAwait(false);
+                stages.Update("保存服装特征检查点", ++writes, unit: "次保存");
                 files[file.Path] = updated; sinceGrouping++; Publish();
                 await RegroupAsync().ConfigureAwait(false);
             }
@@ -148,9 +180,11 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             var options = spec.Analysis with { RecognizeNsfw = false, SemanticCandidates = rules.SelectMany(rule => rule.Candidates()).ToArray() };
             if (pending.Count > 0 && !metadataOnly)
             {
+                stages.Enter(MediaClassificationStageIds.PrepareModel, "准备分类模型");
                 var store = new ModelStore();
                 var download = new InlineProgress<ModelDownloadProgress>(update =>
                 {
+                    stages.Update(update.Stage, update.Received, update.Total, "字节");
                     job.ProgressDetail = update.Stage;
                     job.Activity = new("下载分类模型", "", DateTime.UtcNow, DateTime.UtcNow)
                     { Current = update.Received, Total = update.Total, Unit = "字节", Detail = update.SourceName };
@@ -168,10 +202,19 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             {
                 ct.ThrowIfCancellationRequested();
                 var previous = files[path].Result;
-                var classified = media is null ? previous : FolderClassification.KeepManual(
-                    FolderClassification.Classify(media, rules, spec.TagThreshold, PrivateEnabled()), previous);
+                if (error is not null) stages.Warning(error);
+                var classified = previous;
+                if (media is not null)
+                {
+                    stages.Enter(MediaClassificationStageIds.PlanClassification, "应用分类规则 · " + Path.GetFileName(path));
+                    classified = FolderClassification.KeepManual(
+                        FolderClassification.Classify(media, rules, spec.TagThreshold, PrivateEnabled()), previous);
+                    stages.Update("应用分类规则", ++classifications, unit: "次归类");
+                }
                 var file = new FolderClassificationTaskFile(path, classified, error, Pending: false);
+                stages.Enter(MediaClassificationStageIds.WriteResults, "保存分类检查点");
                 await FolderClassificationTaskStore.SaveFileAsync(job, file, ct).ConfigureAwait(false);
+                stages.Update("保存分类检查点", ++writes, unit: "次保存");
                 files[path] = file; processed.Add(path); Publish();
                 await CompleteAppearanceAsync(file).ConfigureAwait(false);
             }
@@ -180,6 +223,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                 foreach (var path in pending)
                 {
                     await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
+                    stages.Enter(MediaClassificationStageIds.AnalyzeItems, "读取文件信息 · " + Path.GetFileName(path));
                     MediaTagResult? media = null; string? error = null;
                     try
                     {
@@ -189,6 +233,8 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                         MediaTagService.ValidateSource(media);
                     }
                     catch (Exception failure) when (failure is not OperationCanceledException) { error = failure.Message; }
+                    stages.Update("读取文件信息", processed.Count + 1, pending.Count, "个文件");
+                    stages.Runtime("文件信息", "");
                     await RecordAsync(path, media, error).ConfigureAwait(false);
                 }
             }
@@ -201,6 +247,7 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                     MediaTagResult? result = null; string? error = null;
                     var report = new InlineProgress<MediaTagProgress>(update =>
                     {
+                        stages.Observe(update);
                         if (update.Activity is { } activity)
                         {
                             job.Activity = MediaPrivacy.Filter(activity with
@@ -211,10 +258,13 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
                         else if (update.PreviewResult is { } partial)
                         {
                             result = partial with { IsPartial = true };
+                            stages.Enter(MediaClassificationStageIds.PlanClassification, "应用阶段分类规则");
                             var classified = FolderClassification.KeepManual(
                                 FolderClassification.Classify(result, rules, spec.TagThreshold, PrivateEnabled()), files[path].Result);
                             files[path] = files[path] with { Result = classified, Pending = true };
+                            stages.Update("应用阶段分类规则", ++classifications, unit: "次归类");
                             Publish();
+                            stages.Enter(MediaClassificationStageIds.AnalyzeItems);
                         }
                         if (update.Error is not null) error = update.Error;
                     });
@@ -229,7 +279,13 @@ public sealed class FolderClassificationJobService(IMediaEngine engine)
             var review = selected.Count(file => file.Result?.Decisions.Any(decision => decision.NeedsReview) == true);
             job.ProgressDetail = $"完成 {selected.Count(file => file.Result is not null && file.Error is null)} 个，待确认 {review} 个，失败 {failures} 个";
             progress(job.Progress);
-            if (failures > 0) throw new InvalidOperationException(job.ProgressDetail);
+            if (failures > 0)
+            {
+                stages.Enter(MediaClassificationStageIds.AnalyzeItems, job.ProgressDetail);
+                throw new InvalidOperationException(job.ProgressDetail);
+            }
+            foreach (var stage in stages.Capture().Stages.Where(stage => stage.Stage.Id != MediaClassificationStageIds.ScanFiles))
+                stages.Complete(stage.Stage.Id, stage.Elapsed is null ? "无需执行" : stage.Detail, skipped: stage.Elapsed is null);
         }
         finally { job.ClassificationFinishedUtc = DateTime.UtcNow; engine.Settings.NsfwContentChanged -= PrivacyChanged; }
     }

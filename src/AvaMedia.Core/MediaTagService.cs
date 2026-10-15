@@ -50,6 +50,8 @@ public sealed record MediaTagFrame(double Seconds, IReadOnlyList<MediaTagScore> 
 }
 public sealed record MediaTagProgress(string Path, MediaTagResult? Result, string? Error, int Completed, int Total)
 {
+    /// <summary>Explicit execution boundary; empty for ordinary observations within the current stage.</summary>
+    public string StageId { get; init; } = "";
     public AiActivity? Activity { get; init; }
     public MediaTagResult? PreviewResult { get; init; }
 }
@@ -150,6 +152,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
         var files = paths.Select(Path.GetFullPath).Distinct(BatchRename.PathComparer).ToArray();
         var completed = 0;
         var currentPath = files.FirstOrDefault() ?? "";
+        progress?.Report(new(currentPath, null, null, completed, files.Length) { StageId = MediaClassificationStageIds.PrepareModel });
         var stages = new List<string> { "准备标签模型" };
         if (options.NeedsSemanticModel) stages.Add("准备场景模型");
         stages.Add("识别媒体标签");
@@ -215,6 +218,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
             { sceneSetupError = error.Message; return null; }
         }
         var scenes = await PrepareScenesAsync().ConfigureAwait(false);
+        progress?.Report(new(currentPath, null, null, completed, files.Length) { StageId = MediaClassificationStageIds.AnalyzeItems });
         async Task<(MediaSceneResult? Result, string? Error)> SceneResultAsync(byte[][] images, double[] seconds, int[] samples, Action<MediaSceneResult>? updated = null, bool video = false)
         {
             if (scenes is null) return (null, sceneSetupError);
