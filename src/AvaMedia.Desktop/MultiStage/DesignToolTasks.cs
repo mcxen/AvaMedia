@@ -148,7 +148,7 @@ internal sealed class DesignOrientationTask : DesignStageTask, IOrientationTask
             Rotation = IsDone ? 90 : null, Decision = IsDone ? "顺时针旋转 90°" : "", Reliability = IsDone ? "高" : "",
             Reason = IsDone ? $"{valid} 个有效采样中 {samples.Count(s => s.Agrees)} 个判定需要顺时针旋转 90°，画面中人物与文字方向一致。" : "",
             Backend = "OrientationNet · CPU", Samples = samples, HasResult = scenario != DesignStage.Configuring, IsPartial = !IsDone, CanConfirm = IsDone,
-            Output = new TaskOutputView { Folder = outputFolder, Path = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(source) + "_rotated.mp4") }
+            Output = new TaskOutputView { Folder = outputFolder, Path = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(source) + "_rotated.mp4"), Exists = IsDone }
         };
     }
     public OrientationTaskView View { get; }

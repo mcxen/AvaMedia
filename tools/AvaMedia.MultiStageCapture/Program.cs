@@ -184,8 +184,24 @@ internal static class Program
         var ffmpeg = Environment.GetEnvironmentVariable("AVAMEDIA_CAPTURE_FFMPEG") ?? "";
         var engine = new MediaEngine(new AppSettings { Language = "zh-CN", CheckForUpdates = false, AutoUpdate = false, FFmpegPath = ffmpeg });
         var info = await engine.Probe(video, CancellationToken.None);
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var folder = Path.Combine(home, "Movies", "AvaMedia");
+        var folder = Path.Combine(output, "fixtures", "outputs");
+        Directory.CreateDirectory(folder);
+        var stem = Path.GetFileNameWithoutExtension(video);
+        if (tools.Contains("orientation"))
+        {
+            var rotationFolder = Path.Combine(folder, "旋转"); Directory.CreateDirectory(rotationFolder);
+            await CommandAsync(ffmpeg.Length > 0 ? ffmpeg : "ffmpeg", "-y", "-loglevel", "error", "-i", video, "-t", "1", "-an", "-vf", "scale=640:-2", "-c:v", "libx264", "-pix_fmt", "yuv420p", Path.Combine(rotationFolder, stem + "_rotated.mp4"));
+        }
+        if (tools.Contains("subtitle"))
+        {
+            var subtitleFolder = Path.Combine(folder, "字幕"); Directory.CreateDirectory(subtitleFolder);
+            await File.WriteAllTextAsync(Path.Combine(subtitleFolder, stem + ".srt"), "1\n00:00:00,000 --> 00:00:01,000\n旅行视频字幕夹具。\n");
+        }
+        if (tools.Contains("summary"))
+        {
+            var summaryFolder = Path.Combine(folder, "视频总结"); Directory.CreateDirectory(summaryFolder);
+            await File.WriteAllTextAsync(Path.Combine(summaryFolder, stem + "_summary.md"), "# 旅行视频摘要夹具\n\n这是用于界面截图的示例报告。\n");
+        }
         // Sideways frames (transposed counter-clockwise) so the 顺时针旋转 90° decision and corrected preview read correctly.
         var sideways = new List<byte[]>();
         if (tools.Contains("orientation"))
@@ -216,10 +232,10 @@ internal static class Program
                     "subtitle" => Create(new DesignSubtitleTask(state, video, info, Path.Combine(folder, "字幕")), t => new SubtitleStageContent(t, engine, new(() => Task.CompletedTask)), "自动字幕"),
                     "summary" => Create(new DesignVideoSummaryTask(state, video, info, Path.Combine(folder, "视频总结")), t => new VideoSummaryStageContent(t, engine, new(() => Task.CompletedTask)), "视频总结"),
                     "tagging" => Create(new DesignMediaClassificationTask(state, true, photos, ""), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动标签分类"),
-                    "classification" => Create(new DesignMediaClassificationTask(state, false, photos, Path.Combine(home, "Pictures", "已整理")), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动媒体整理"),
+                    "classification" => Create(new DesignMediaClassificationTask(state, false, photos, Path.Combine(folder, "已整理")), t => new MediaClassificationStageContent(t, new(() => Task.CompletedTask)), "自动媒体整理"),
                     _ => throw new ArgumentException("Unknown tool " + tool)
                 };
-                var window = new MultiStageTaskWindow(task, content, label);
+                var window = new MultiStageTaskWindow(task, content, label, engine);
                 await CaptureAsync(window, Path.Combine(output, $"{tool}-{state.ToString().ToLowerInvariant()}-{theme}.png"));
             }
         static (IMultiStageTask, IMultiStageToolContent, string) Create<T>(T task, Func<T, IMultiStageToolContent> content, string label) where T : IMultiStageTask => (task, content(task), label);
