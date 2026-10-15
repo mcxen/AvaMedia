@@ -22,7 +22,7 @@ public partial class MainWindow
     { if (JobList.SelectedItem is Job job) await ShowSummaryResultAsync(job); }
 
     private Task ConfigureVideoSummaryAsync(string[]? files, Job? editing = null) => editing is null
-        ? StartToolWorkflow(() => ConfigureVideoSummaryWindowAsync(files)) : ConfigureVideoSummaryWindowAsync(files, editing);
+        ? ConfigureLifecycleEntryAsync(Catalog.Find("video-summary"), files) : ConfigureVideoSummaryWindowAsync(files, editing);
 
     private async Task ConfigureVideoSummaryWindowAsync(string[]? files, Job? editing = null)
     {

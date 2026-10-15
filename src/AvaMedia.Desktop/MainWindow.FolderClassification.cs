@@ -9,20 +9,7 @@ public partial class MainWindow
     private readonly Dictionary<Guid, Classification.ClassificationRunWindow> _classificationRuns = [];
 
     private Task ConfigureFolderClassificationAsync(string[]? files)
-    {
-        if (_closing) return Task.CompletedTask;
-        var submit = new Classification.ClassificationSubmitWindow(Engine, _settings, files, job =>
-        {
-            AddToolJobs([job], startImmediately: true); _ = ShowAiTaskAsync(job);
-        }, async owner =>
-        {
-            await ShowSettingsAsync(owner, settings => settings.OpenModelManagement());
-        }, ShowClassificationTasks);
-        Controls.WindowChrome.ShowIndependent(submit); return Task.CompletedTask;
-    }
-
-    /// <summary>Full rule editor (custom groups, manual review); opened from the compact submit window.</summary>
-    internal void OpenAdvancedClassification(string[] files) => OpenClassificationWindow(files.Length == 0 ? null : files);
+        => ConfigureLifecycleEntryAsync(Catalog.Find("folder-classification"), files);
 
     private void OpenClassificationRun(Job job)
     {
@@ -54,7 +41,7 @@ public partial class MainWindow
                 _classificationWindows.Remove(id);
             _classificationWindows[job.Id] = window!; AddToolJobs([job], startImmediately: true);
         }, RequestTaskRunAsync, job => { _queue.Stop(job); Save(); Refresh(); },
-            () => OpenClassificationWindow(), ShowClassificationTasks, _settings, pauseTask: PauseTask, reserveFiles: _queue.ReserveFiles);
+            () => { _ = ConfigureFolderClassificationAsync(null); }, ShowClassificationTasks, _settings, pauseTask: PauseTask, reserveFiles: _queue.ReserveFiles);
         window.Moved += SynchronizeFileChanges;
         window.Closed += (_, _) =>
         {

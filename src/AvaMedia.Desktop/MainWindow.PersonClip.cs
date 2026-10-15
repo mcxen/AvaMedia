@@ -25,7 +25,7 @@ public partial class MainWindow
     }
 
     private Task ConfigurePersonClipAsync(string[]? files, Job? editing = null) => editing is null
-        ? StartToolWorkflow(() => ConfigurePersonClipWindowAsync(files)) : ConfigurePersonClipWindowAsync(files, editing);
+        ? ConfigureLifecycleEntryAsync(Catalog.Find("person-clip"), files) : ConfigurePersonClipWindowAsync(files, editing);
 
     private async Task ConfigurePersonClipWindowAsync(string[]? files, Job? editing = null)
     {

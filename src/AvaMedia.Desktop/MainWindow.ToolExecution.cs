@@ -16,6 +16,8 @@ public partial class MainWindow
                 SubtitleLifecycle.PrepareRecognition(job);
                 using (new TaskLifecycle(job, SubtitleLifecycle.Pages)) { }
             }
+            if (!_mcpBackgroundMode && job.FeatureId == "rotate" && job.Options.Orientation is not null)
+                using (new TaskLifecycle(job, OrientationLifecycle.Pages)) { }
             _jobs.Add(job);
         }
         Save(); Refresh();

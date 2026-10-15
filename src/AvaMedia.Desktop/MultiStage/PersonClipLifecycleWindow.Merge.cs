@@ -108,7 +108,7 @@ internal sealed partial class PersonClipLifecycleWindow
         _folderPath.Text = MsUi.Display(_folder); ToolTip.SetTip(_folderPath, _folder);
         _formatDetail.Text = _format.SelectedItem as string == "Fast Copy" ? MsUi.MediaDetail(edit.Info with { Duration = 0 }) : "";
         _format.ItemTemplate ??= new Avalonia.Controls.Templates.FuncDataTemplate<string>((preset, _) =>
-            new TextBlock { Text = Localization.Text(QuickClipBatch.PresetLabel(preset!)) });
+            new TextBlock { Text = Localization.Text(QuickClipBatch.PresetLabel(preset ?? "")) });
 
         string size = Localization.Text("待估算"), output = "—", method;
         try

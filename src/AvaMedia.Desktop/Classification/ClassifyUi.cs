@@ -22,7 +22,7 @@ internal static class ClassifyUi
     {
         window.Classes.Add("ai-specialist");
         window.Styles.Add(new Avalonia.Markup.Xaml.Styling.StyleInclude(new Uri("avares://AvaMedia.Desktop/"))
-        { Source = new("avares://AvaMedia.Desktop/Classification/ClassificationSubmitStyles.axaml") });
+        { Source = new("avares://AvaMedia.Desktop/Classification/ClassificationStyles.axaml") });
     }
     public static string L(string text) => Localization.Text(text);
 

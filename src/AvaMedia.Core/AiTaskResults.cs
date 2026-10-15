@@ -63,5 +63,5 @@ public partial class Job
     [JsonIgnore] public MediaTagResult? MediaTagResult { get => Volatile.Read(ref _mediaTagResult); set { Volatile.Write(ref _mediaTagResult, value); Raise(); } }
     [JsonIgnore] public PersonDetectionTaskResult? PersonDetectionResult { get => Volatile.Read(ref _personDetectionResult); set { Volatile.Write(ref _personDetectionResult, value); Raise(); } }
     [JsonIgnore] public SubtitleTaskResult? SubtitleResult { get => Volatile.Read(ref _subtitleResult); set { Volatile.Write(ref _subtitleResult, value); Raise(); } }
-    [JsonIgnore] public bool HasInternalOutput => Options.VlRename is not null || Options.Orientation is not null || Options.PersonClip?.AnalysisOnly == true || Options.Transcription?.RecognitionOnly == true || Options.MediaTag?.WriteTextReport == false;
+    [JsonIgnore] public bool HasInternalOutput => Options.VlRename is not null || Options.Orientation is not null && Lifecycle?.Current.Page.Id is not ("export" or "done") || Options.PersonClip?.AnalysisOnly == true || Options.Transcription?.RecognitionOnly == true || Options.MediaTag?.WriteTextReport == false;
 }

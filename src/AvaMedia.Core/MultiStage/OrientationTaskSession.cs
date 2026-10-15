@@ -77,7 +77,7 @@ public sealed class OrientationTaskSession : IOrientationTask
                 {
                     JobState.Waiting => MultiStageTaskState.Configuring, JobState.Running => MultiStageTaskState.Running,
                     JobState.Paused => MultiStageTaskState.Paused, JobState.Stopping => MultiStageTaskState.Stopping,
-                    JobState.Completed => MultiStageTaskState.Completed, JobState.Failed => MultiStageTaskState.Failed,
+                    JobState.AwaitingUser => MultiStageTaskState.AwaitingUser, JobState.Completed => MultiStageTaskState.Completed, JobState.Failed => MultiStageTaskState.Failed,
                     _ => MultiStageTaskState.Cancelled
                 },
                 Stages = Array.AsReadOnly(statuses), CurrentStageIndex = current, Progress = configuring ? 0 : _job.Progress,

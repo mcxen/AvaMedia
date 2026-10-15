@@ -34,10 +34,20 @@ public partial class MainWindow
                     job.Options.Transcription?.ReviewOutputToSource == true ? Path.GetDirectoryName(job.Inputs[0])! : job.Options.Transcription?.ReviewOutputFolder ?? _settings.OutputFolder,
                     () => { Save(); Refresh(); return Task.CompletedTask; },
                     async () => { job.State = JobState.Waiting; Save(); Refresh(); await RequestTaskRunAsync(job); })
-                : new MultiStageTaskWindow(session, content, label, Engine);
+                : job.Lifecycle is not null && session is IOrientationTask orientation
+                    ? new OrientationLifecycleWindow(job, orientation, content, Engine,
+                        () => { Save(); Refresh(); return Task.CompletedTask; },
+                        async () => { job.State = JobState.Waiting; Save(); Refresh(); await RequestTaskRunAsync(job); },
+                        () => _jobs.Where(item => item != job).Select(item => item.Output))
+                    : new MultiStageTaskWindow(session, content, label, Engine);
+        window.ConfigurePreparation(job, _settings,
+            () => job.State == JobState.Waiting && !_queue.IsScheduled(job) && !_queue.IsExecuting(job)
+                && (job.Lifecycle is null || job.Lifecycle.Current.Page.Id == "process" && job.Lifecycle.Current.State == PageState.Pending),
+            () => { Save(); Refresh(); }, () => _jobs.Where(item => item != job).Select(item => item.Output));
         _aiTaskWindows[job.Id] = window;
         window.Closed += (_, _) => _aiTaskWindows.Remove(job.Id);
         Controls.WindowChrome.ShowIndependent(window);
+        Controls.WindowChrome.Present(window);
     }
 
     private (IMultiStageTask Session, IMultiStageToolContent Content, string Label) CreateMultiStage(Job job)
@@ -50,7 +60,11 @@ public partial class MainWindow
             {
                 var session = new PersonClipTaskSession(job, MultiStageQueueHost);
                 var actions = new PersonClipTaskActions(OpenOutput: OpenFile, AdjustSegments: () => Guard(() => ShowPersonClipResultAsync(job)),
-                    EditParameters: () => CanEditTask(job) ? EditJob(job) : Task.CompletedTask);
+                    EditParameters: () =>
+                    {
+                        if (_aiTaskWindows.GetValueOrDefault(job.Id) is MultiStageTaskWindow window) window.ShowEntryParameters();
+                        return Task.CompletedTask;
+                    });
                 return (session, new PersonClipStageContent(session, Engine, actions), "保留有人片段");
             }
             case "rotate":

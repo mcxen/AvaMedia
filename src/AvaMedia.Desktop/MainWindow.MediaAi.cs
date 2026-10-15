@@ -5,9 +5,7 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     internal Task ConfigureMediaAiAsync(string[]? files)
-    {
-        CreateMediaAiWindow(files); return Task.CompletedTask;
-    }
+        => ConfigureLifecycleEntryAsync(Catalog.Find("media-ai"), files);
 
     private MediaAiWindow CreateMediaAiWindow(string[]? files)
     {

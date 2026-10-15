@@ -64,6 +64,12 @@ public partial class MainWindow : Window
 
     private async Task ConfigureCoreAsync(Feature feature,string[]? files=null)
     {
+        if (MultiStageEntry.Supports(feature.Id))
+        {
+            if (feature.Id != "person-clip" || _settings.EnableBetaFeatures)
+                await ConfigureLifecycleEntryAsync(feature, files);
+            return;
+        }
         if (feature.Id == FeatureNavigation.ExclusiveRenamer.Id)
         {
             await OpenExclusiveRenamerAsync(this);
@@ -102,7 +108,7 @@ public partial class MainWindow : Window
         }
         if(feature.Id=="rotate")
         {
-            await ConfigureRotateAsync(files); return;
+            await ConfigureLifecycleEntryAsync(feature, files); return;
         }
         if(feature.Id=="crop")
         {
