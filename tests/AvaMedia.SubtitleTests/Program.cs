@@ -11,6 +11,12 @@ using AvaMedia.Desktop;
 #endif
 using AvaMedia.Core;
 
+if (args.Contains("--multi-stage-only"))
+{
+    await SubtitleMultiStageChecks.RunAsync();
+    return;
+}
+
 var root=Path.GetFullPath("artifacts/subtitles-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));Directory.CreateDirectory(root);
 var engine=new MediaEngine(new());var checks=new List<string>();var outputs=new List<string>();
 var multi=Path.Combine(root,"双画面 双声音 字幕 O'Brien [test],.mkv");
