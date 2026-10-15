@@ -28,10 +28,14 @@ internal static partial class Program
         await Settle(main);
         var rows = main.GetVisualDescendants().OfType<JobRowView>().ToArray();
         await Task.WhenAll(rows.Select(row => row.Ready)).WaitAsync(TimeSpan.FromSeconds(40));
-        TaskListStageFixtures.Apply(rows.Select(row => (Job)row.DataContext!));
+        var jobs = ((IEnumerable<Job>)(typeof(MainWindow).GetField("_jobs", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            ?.GetValue(main) ?? throw new MissingFieldException(typeof(MainWindow).FullName, "_jobs"))).ToArray();
+        TaskListStageFixtures.Apply(jobs);
+        RefreshQueueForCapture(main);
         await Settle(main);
         await Task.Delay(1200);
-        TaskListStageFixtures.Apply(rows.Select(row => (Job)row.DataContext!));
+        TaskListStageFixtures.Apply(jobs);
+        RefreshQueueForCapture(main);
         await Capture(main, "impl-tasklist-dark");
 
         await CaptureStageHover(main, rows, "我做了20年的拿手菜.mp4", "impl-hover-running-dark");
@@ -54,6 +58,14 @@ internal static partial class Program
         else Console.WriteLine("Context menu unavailable; skipped context capture.");
 
         main.Close();
+    }
+
+    private static void RefreshQueueForCapture(MainWindow main)
+    {
+        // Fixtures set Job.State directly, so refresh the queue summary and completed-task group too.
+        var refresh = typeof(MainWindow).GetMethod("RefreshTaskList", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, "RefreshTaskList");
+        refresh.Invoke(main, null);
     }
 
     private static async Task CaptureStageHover(MainWindow main, IEnumerable<JobRowView> rows, string fileName, string captureName)

@@ -2,7 +2,7 @@
   <!-- Main window shell for the light / dark skins, after the R2 macOS-style design (see docs/SIDEBAR-TREE.md). -->
   <Styles.Resources>
     <ResourceDictionary>
-      <GridLength x:Key="ShellQueueActionsWidth">190</GridLength>
+      <GridLength x:Key="ShellQueueActionsWidth">220</GridLength>
       <sys:Double x:Key="ShellQueueRowHeight">56</sys:Double>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
