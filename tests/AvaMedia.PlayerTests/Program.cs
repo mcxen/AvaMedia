@@ -11,6 +11,13 @@ using AvaMedia.Core;
 using AvaMedia.Desktop;
 using NAudio.Wave;
 
+if (args.Contains("--subtitle-only"))
+{
+    await SubtitleTaskViewChecks.RunAsync();
+    await SubtitleMultiStageChecks.RunAsync();
+    return;
+}
+if (args.Contains("--subtitle-output-capture")) { Environment.ExitCode = SubtitleOutputCapture.Run(args); return; }
 if (args.Contains("--performance")) { await PlayerPerformanceChecks.Run(args); return; }
 if (args.Contains("--details")) { ProjectDetailChecks.Run(); return; }
 

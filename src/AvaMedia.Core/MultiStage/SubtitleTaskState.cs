@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 [assembly: InternalsVisibleTo("AvaMedia.SubtitleTests")]
+[assembly: InternalsVisibleTo("AvaMedia.PlayerTests")]
 
 namespace AvaMedia.Core;
 

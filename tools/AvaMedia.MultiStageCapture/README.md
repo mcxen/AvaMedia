@@ -74,3 +74,15 @@ AVAMEDIA_CAPTURE_FFPROBE=/tmp/ffmpeg-n9.0-latest-linux64-gpl-9.0/bin/ffprobe \
 本模式生成一段合成视频，人物片段与字幕使用标注的示意数据；调整页真实打开编辑会话，完成页只复制合成源作为预览夹具，**不把它当作合并输出验证**。不运行队列、检测、语音模型、功能回归或像素对比。输出方式截图包含示意字幕，即使合成源没有音轨也不启动识别。各页等待短暂异步布局 / 预览后渲染，不以截图工具断言媒体正确性。
 
 每次运行隔离 XDG 与 `AVAMEDIA_STATE_DIRECTORY`，退出恢复环境并清理临时视频、结果、设置和缓存；PNG 只留在指定输出目录。添加状态只需编译，实际生成截图须按用户要求的范围执行，不默认扩展验收。
+
+## 字幕输出方式（Xvfb / 原生 X11）
+
+由 `AvaMedia.PlayerTests` 编译截图入口，避免构建额外项目。使用实际 `App`、字幕校对窗口及给定视频，字幕文字明确标记为截图夹具；隔离偏好状态，不运行识别或导出媒体。只生成深色 zh-CN 的烧录、SRT、ASS 三张截图。
+
+```bash
+xvfb-run -a -s '-screen 0 1280x800x24' ~/.dotnet/dotnet \
+  tests/AvaMedia.PlayerTests/bin/Debug/net8.0/AvaMedia.PlayerTests.dll \
+  --subtitle-output-capture /workspace/AvaMedia-sidebar-review/subtitle-output /path/to/video.mp4
+```
+
+同一测试入口的 `--subtitle-only` 运行现有字幕视图与阶段单元检查，不运行播放器全套回归。
