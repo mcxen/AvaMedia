@@ -8,7 +8,6 @@ namespace AvaMedia.Desktop;
 public partial class MainWindow
 {
     private readonly Dictionary<Guid, PersonClipAdjustWindow> _personClipAdjustWindows = [];
-    private readonly HashSet<Guid> _personClipAdjustOpening = [];
 
     private PersonClipWindow CreatePersonClipWindow(string[]? files, Job? editing = null, bool review = false, PersonClipOptions? redetect = null)
     {
@@ -53,7 +52,9 @@ public partial class MainWindow
     {
         if (_closing) return;
         if (_personClipAdjustWindows.TryGetValue(job.Id, out var existing)) { WindowChrome.Present(existing); return; }
-        if (!_personClipAdjustOpening.Add(job.Id)) return;
+        if (!_jobs.Contains(job) || _queue.IsExecuting(job) || job.State is JobState.Running or JobState.Stopping
+            || !_editingJobs.Add(job)) return;
+        Refresh();
         try
         {
             var session = await PersonClipEditing.OpenAsync(job);
@@ -70,11 +71,18 @@ public partial class MainWindow
                 });
             var window = new PersonClipAdjustWindow(session, host);
             _personClipAdjustWindows[job.Id] = window;
-            window.Closed += (_, _) => _personClipAdjustWindows.Remove(job.Id);
+            window.Closed += (_, _) =>
+            {
+                _personClipAdjustWindows.Remove(job.Id);
+                _editingJobs.Remove(job); Refresh();
+            };
             try { window.ShowIndependent(); }
             catch { _personClipAdjustWindows.Remove(job.Id); window.Close(); throw; }
         }
         catch (Exception error) { if (!_closing) await Ui.Message(this, "调整片段", error.Message); }
-        finally { _personClipAdjustOpening.Remove(job.Id); }
+        finally
+        {
+            if (!_personClipAdjustWindows.ContainsKey(job.Id)) { _editingJobs.Remove(job); Refresh(); }
+        }
     }
 }

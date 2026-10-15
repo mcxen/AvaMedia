@@ -302,6 +302,28 @@ public sealed class PersonClipEditTests
     }
 
     [Fact]
+    public async Task Stale_sessions_cannot_overwrite_replaced_or_cleared_results()
+    {
+        using var files = new Files();
+        var stale = await files.Open(); var current = await files.Open();
+        current.SetKeep(2, false); await current.SaveAsync();
+        var saved = await File.ReadAllTextAsync(files.Job.Output);
+        var result = files.Job.PersonDetectionResult;
+        stale.SetKeep(1, false);
+        Assert.Contains("已更新", (await Assert.ThrowsAsync<InvalidOperationException>(() => stale.SaveAsync())).Message);
+        Assert.Throws<InvalidOperationException>(() => stale.ToClipEditResult());
+        Assert.Same(result, files.Job.PersonDetectionResult);
+        Assert.Equal(saved, await File.ReadAllTextAsync(files.Job.Output));
+        current.SetBounds(1, 1.5, 4); await current.SaveAsync(); // A session can save its own next revision.
+        files.Job.PersonDetectionResult = null;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => current.SaveAsync());
+        var reopened = await files.Open(); reopened.SetKeep(3, false); await reopened.SaveAsync();
+        Assert.Single(files.Job.PersonDetectionResult!.Result.Segments);
+        Assert.Single(Directory.GetFiles(files.Root, "*.json"));
+        Assert.Empty(Directory.GetFiles(files.Root, "*.pending"));
+    }
+
+    [Fact]
     public async Task Export_uses_output_order_and_individual_effects_through_joined_workflow()
     {
         using var files = new Files(); var s = await files.Open();

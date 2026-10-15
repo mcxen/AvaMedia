@@ -384,7 +384,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
         await StopPlaybackAsync();
         ClipEditResult edit;
         try { edit = _session.ToClipEditResult(); }
-        catch (ArgumentException error) { Notify(error.Message); return; }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException) { Notify(error.Message); return; }
         var preset = _format.SelectedItem as string ?? PersonClipTaskOptions.DefaultExportPreset;
         try { QuickClipWorkflow.ValidateJoinedExports([edit], preset); }
         catch (ArgumentException error) { Notify(error.Message); return; }

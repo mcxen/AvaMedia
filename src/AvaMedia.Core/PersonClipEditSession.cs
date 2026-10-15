@@ -15,7 +15,9 @@ public static partial class PersonClipEditing
         { throw new InvalidOperationException("无法读取完整的人物检测结果，请重新检测。", error); }
         if (result is null || result.Result is null || result.Result.IsPartial)
             throw new InvalidOperationException("尚无完整的人物检测结果，请先完成检测。");
-        return new PersonClipEditSession(job, result, path);
+        var session = new PersonClipEditSession(job, result, path);
+        job.PersonDetectionResult ??= result;
+        return session;
     }
 }
 
@@ -23,6 +25,7 @@ public static partial class PersonClipEditing
 public sealed class PersonClipEditSession : IPersonClipEditSession
 {
     private readonly PersonDetectionTaskResult _detected;
+    private PersonDetectionTaskResult _savedResult;
     private readonly string _savePath;
     private readonly ConversionOptions[] _original;
     private readonly PersonClipRange[] _originalExclusions;
@@ -35,7 +38,7 @@ public sealed class PersonClipEditSession : IPersonClipEditSession
 
     internal PersonClipEditSession(Job job, PersonDetectionTaskResult detected, string savePath)
     {
-        Job = job; _detected = detected; _savePath = savePath;
+        Job = job; _detected = detected; _savedResult = detected; _savePath = savePath;
         SourcePath = detected.Result.Path; Info = detected.Result.Info;
         if (!double.IsFinite(Duration) || Duration <= 0 || detected.Result.Segments is null)
             throw new InvalidOperationException("人物检测结果无效，请重新检测。");
@@ -372,6 +375,7 @@ public sealed class PersonClipEditSession : IPersonClipEditSession
     }
     public ClipEditResult ToClipEditResult()
     {
+        EnsureCurrentResult();
         if (SourceChanged) throw new ArgumentException("源视频已发生变化，请重新检测后导出。");
         if (KeptCount == 0) throw new ArgumentException("请至少保留一个片段后再导出。");
         Validate(_entries);
@@ -379,14 +383,29 @@ public sealed class PersonClipEditSession : IPersonClipEditSession
     }
     public PersonClipOptions RedetectOptions() => (Job.Options.PersonClip?.Detection ?? new()) with
     { ExcludedRanges = PersonClipExclusions.Normalize(_exclusions) };
+    private void EnsureCurrentResult()
+    {
+        if (!ReferenceEquals(Job.PersonDetectionResult, _savedResult))
+            throw new InvalidOperationException("人物检测结果已更新，请关闭调整窗口后重新打开。");
+    }
     public async Task SaveAsync(CancellationToken ct = default)
     {
+        EnsureCurrentResult();
         var snapshot = Capture();
         var state = new PersonClipEditState(_original.Select(option => option.Clone()).ToArray(), _originalExclusions.ToArray(),
             snapshot.Entries, snapshot.Exclusions, _nextId);
         var revised = _detected with { Edits = state, Result = _detected.Result with
             { Segments = snapshot.Entries.Where(entry => entry.Segment.Keep).Select(entry => entry.Segment.Options.Clone()).ToArray() } };
-        await AiTaskResults.SaveAsync(_savePath, revised, ct).ConfigureAwait(false);
-        Job.PersonDetectionResult = revised;
+        var pending = _savePath + "." + Guid.NewGuid().ToString("N") + ".pending";
+        try
+        {
+            await AiTaskResults.SaveAsync(pending, revised, ct).ConfigureAwait(false);
+            EnsureCurrentResult();
+            ct.ThrowIfCancellationRequested();
+            File.Move(pending, _savePath, true);
+            _savedResult = revised;
+            Job.PersonDetectionResult = revised;
+        }
+        finally { if (File.Exists(pending)) File.Delete(pending); }
     }
 }
