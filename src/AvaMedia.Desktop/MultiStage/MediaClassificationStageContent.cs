@@ -228,13 +228,22 @@ internal sealed class MediaClassificationStageContent : Grid, IMultiStageToolCon
     private void RefreshPreview(MediaClassificationTaskView view, MultiStageTaskState state, MediaClassificationItemView? active)
     {
         _preview.Dimmed = state == MultiStageTaskState.Failed;
-        _preview.SetChips(active is not null ? Localization.Text("分析中") : "", view.TotalItems > 0 && view.DoneItems > 0 ? $"{view.DoneItems} / {view.TotalItems}" : "");
-        if (view.Preview is { } bytes) _preview.ShowEncoded(bytes);
-        else if (view.Items.LastOrDefault(i => i.State is StageState.Done or StageState.Active) is { } item && IsImage(item.Path) && File.Exists(item.Path)) _preview.ShowFile(item.Path);
-        else _preview.ShowEncoded(null);
         var latest = view.Items.LastOrDefault(i => i.State == StageState.Done);
-        _preview.SetCaption(state == MultiStageTaskState.Configuring ? "待整理" : active is not null ? "正在分析" : "最近分析",
-            view.PreviewCaption.Length > 0 ? view.PreviewCaption : latest is null ? "" : Path.GetFileName(latest.Path) + (latest.Result.Length > 0 ? " · " + latest.Result : ""));
+        // The backend preview is either the live frame (caption names the active file) or the latest tagged file.
+        var showsActive = active is not null && (view.PreviewCaption.Length > 0
+            ? view.PreviewCaption.StartsWith(Path.GetFileName(active.Path), StringComparison.OrdinalIgnoreCase)
+            : view.Preview is null && latest is null);
+        _preview.SetChips(showsActive ? Localization.Text("分析中") : "", view.TotalItems > 0 && view.DoneItems > 0 ? $"{view.DoneItems} / {view.TotalItems}" : "");
+        if (view.Preview is { } bytes) _preview.ShowEncoded(bytes);
+        else if ((showsActive ? active : latest ?? active) is { } item && IsImage(item.Path) && File.Exists(item.Path)) _preview.ShowFile(item.Path);
+        else _preview.ShowEncoded(null);
+        // The lead must describe the file actually shown: the backend preview follows the active file,
+        // otherwise the picture is the latest finished file (or the active one before any finished).
+        static string Name(MediaClassificationItemView item) => Path.GetFileName(item.Path) + (item.Result.Length > 0 ? " · " + item.Result : "");
+        var shown = showsActive ? active : latest;
+        var lead = state == MultiStageTaskState.Configuring ? "待整理" : showsActive ? "正在分析" : "最近分析";
+        var detail = view.PreviewCaption.Length > 0 ? view.PreviewCaption : shown is null ? "" : Name(shown);
+        _preview.SetCaption(lead, detail);
     }
 
     private static bool IsImage(string path) => Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".bmp" or ".gif";
