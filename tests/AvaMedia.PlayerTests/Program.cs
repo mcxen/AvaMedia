@@ -79,6 +79,13 @@ var longTimer = Stopwatch.StartNew(); Complete(audioDecoder.Play(0, false, 600))
 Check(longTimer.Elapsed.TotalSeconds < 3 && audioDecoder.DecodedAudioBytes < 384000 && audioDecoder.PeakAudioBufferBytes <= 96000, "Ten-minute audio starts from bounded PCM instead of decoding the whole file");
 timings.Add(new { operation = "ten-minute-audio", milliseconds = longTimer.Elapsed.TotalMilliseconds, audioDecoder.DecodedAudioBytes });
 Complete(audioDecoder.Stop()); audioDecoder.Dispose();
+var blockingOutput = new BlockingStopAudio();
+var closingDecoder = new Playback(engine, longAudio, (_, _) => blockingOutput); closingDecoder.Configure(longInfo);
+Complete(closingDecoder.Play(0, false, 600)); Complete(closingDecoder.FirstFrame); closingDecoder.Pause();
+var closeThread = Environment.CurrentManagedThreadId; closingDecoder.Dispose();
+Wait(() => blockingOutput.StopEntered);
+Check(blockingOutput.StopThreadId != closeThread, "Closing playback stops a blocking audio device off the UI thread");
+blockingOutput.AllowStop.Set(); Wait(() => blockingOutput.Disposed);
 Check(errors.Count == 0, "The streaming A/V session reports no decoder failures");
 var pausedFirst = Create(source); pausedFirst.Configure(info); Complete(pausedFirst.Play(0, true, 1)); pausedFirst.Pause(); Complete(pausedFirst.FirstFrame);
 Check(pausedFirst.IsPaused && pausedFirst.DecodedFrames == 1, "Pausing during startup still presents the first frame");
@@ -231,4 +238,23 @@ sealed class MeasuredAudio : IAudioOutput
     public void Pause() { lock (_sync) _playing = false; }
     public void Stop() { lock (_sync) _playing = false; }
     public void Dispose() { lock (_sync) { _playing = false; Disposed = true; } _timer.Dispose(); }
+}
+
+sealed class BlockingStopAudio : IAudioOutput
+{
+    private readonly ManualResetEventSlim _allowStop = new();
+    private int _stopEntered, _stopThreadId, _disposed;
+    public bool StopEntered => Volatile.Read(ref _stopEntered) != 0;
+    public int StopThreadId => Volatile.Read(ref _stopThreadId);
+    public bool Disposed => Volatile.Read(ref _disposed) != 0;
+    public ManualResetEventSlim AllowStop => _allowStop;
+    public float Volume { set { } }
+    public void Play() { }
+    public void Pause() { }
+    public void Stop()
+    {
+        Volatile.Write(ref _stopThreadId, Environment.CurrentManagedThreadId); Volatile.Write(ref _stopEntered, 1);
+        _allowStop.Wait(TimeSpan.FromSeconds(2));
+    }
+    public void Dispose() => Volatile.Write(ref _disposed, 1);
 }
