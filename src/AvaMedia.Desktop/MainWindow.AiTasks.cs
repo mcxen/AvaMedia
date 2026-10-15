@@ -95,7 +95,7 @@ public partial class MainWindow
             Controls.WindowChrome.Present(existing);
             // Restore is asynchronous on native window managers; focus after the restore notification.
             Avalonia.Threading.DispatcherTimer.RunOnce(() =>
-            { if (_aiTaskWindows.GetValueOrDefault(job.Id) == existing) existing.Activate(); }, TimeSpan.FromMilliseconds(100));
+            { if (_aiTaskWindows.GetValueOrDefault(job.Id) == existing) Controls.WindowChrome.ActivateRestoredTask(existing); }, TimeSpan.FromMilliseconds(100));
             return Task.CompletedTask;
         }
         if (UsesMultiStageWindow(job)) { ShowMultiStageWindow(job); return Task.CompletedTask; }
