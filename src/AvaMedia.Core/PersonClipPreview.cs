@@ -15,6 +15,12 @@ internal static class PersonClipPreview
     }
 
     internal static byte[] EncodePng(byte[] rgb, int size, (int Left, int Top, int Width, int Height)? content = null)
+        => Encode(rgb, size, content, SKEncodedImageFormat.Png);
+
+    internal static byte[] EncodeJpeg(byte[] rgb, int size, (int Left, int Top, int Width, int Height) content)
+        => Encode(rgb, size, content, SKEncodedImageFormat.Jpeg);
+
+    private static byte[] Encode(byte[] rgb, int size, (int Left, int Top, int Width, int Height)? content, SKEncodedImageFormat format)
     {
         var area = content ?? (Left: 0, Top: 0, Width: size, Height: size);
         using var bitmap = new SKBitmap(area.Width, area.Height, SKColorType.Rgba8888, SKAlphaType.Opaque);
@@ -28,7 +34,11 @@ internal static class PersonClipPreview
             }
         Marshal.Copy(rgba, 0, bitmap.GetPixels(), rgba.Length);
         using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 80);
+        using var thumbnail = format == SKEncodedImageFormat.Jpeg && Math.Max(bitmap.Width, bitmap.Height) > 320
+            ? bitmap.Resize(new SKImageInfo(Math.Max(1, (int)Math.Round(bitmap.Width * 320d / Math.Max(bitmap.Width, bitmap.Height))),
+                Math.Max(1, (int)Math.Round(bitmap.Height * 320d / Math.Max(bitmap.Width, bitmap.Height)))), SKFilterQuality.Medium) : null;
+        using var resized = thumbnail is null ? null : SKImage.FromBitmap(thumbnail);
+        using var data = (resized ?? image).Encode(format, format == SKEncodedImageFormat.Png ? 80 : 75);
         return data.ToArray();
     }
 }

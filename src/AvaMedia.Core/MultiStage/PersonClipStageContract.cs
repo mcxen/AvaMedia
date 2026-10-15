@@ -71,6 +71,7 @@ public sealed record PersonClipTaskView
     public bool HasResult { get; init; }
     public double KeptSeconds { get; init; }
     public PersonClipLiveFrame? LiveFrame { get; init; }
+    public IReadOnlyList<PersonClipReplayFrame> ReplayFrames { get; init; } = [];
     public PersonClipSettingsSummary Settings { get; init; } = new();
     /// <summary>Final output file (completed export) or the planned output path.</summary>
     public string OutputPath { get; init; } = "";
