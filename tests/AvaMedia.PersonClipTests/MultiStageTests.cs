@@ -24,6 +24,36 @@ public sealed class MultiStageTests(PersonClipStageFiles files)
     private static readonly MediaInfo Info = new(10, 1920, 1080, true, true, "{}", "h264");
 
     [Fact]
+    public async Task Read_video_detail_and_logs_use_display_format_without_changing_duration()
+    {
+        var job = files.Job(); var stages = new PersonClipTaskState(job); job.PersonClipStages = stages;
+        var info = new MediaInfo(71.145941, 1280, 720, true, true, "{}", "h264");
+        var options = new PersonClipOptions(ExcludedRanges: [new(0, info.Duration)]);
+        var result = await new PersonClipAnalysis(new FakeEngine(info)).AnalyzeStagesAsync(job.Inputs[0], options, null, default, stages, job);
+        Assert.Equal(info.Duration, result.Info.Duration);
+        Assert.Equal("1280×720 · H.264 · 01:11.1", stages.Capture().Summary.Stages[0].Status.Detail);
+        using var session = new PersonClipTaskSession(job, new FakeHost(), new FakeEngine(), new ModelStore(Path.Combine(files.Root, "models")));
+        var logs = await session.ReadLogAsync();
+        Assert.Contains(logs, e => e.StageId == PersonClipStageIds.ReadVideo && e.Message == "1280×720 · H.264 · 01:11.1");
+        Assert.Contains("1280×720 · H.264 · 01:11.1", await job.ReadLogAsync());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(ProgressEstimateState.Estimating)]
+    [InlineData(ProgressEstimateState.Stalled)]
+    public void Running_session_keeps_unknown_remaining_empty(ProgressEstimateState? estimateState)
+    {
+        var job = files.Job(); job.State = JobState.Running; job.Progress = 60;
+        job.Estimate = estimateState is { } value ? new(value) : null;
+        var time = new ManualTime(); var stages = new PersonClipTaskState(job, time); job.PersonClipStages = stages;
+        stages.Start(PersonClipStageIds.Detect); time.Advance(120); stages.Update(12, 20, "帧", "12 / 20 帧");
+        using var session = new PersonClipTaskSession(job, new FakeHost(), new FakeEngine(), new ModelStore(Path.Combine(files.Root, "models")));
+        Assert.Equal(MultiStageTaskState.Running, session.Snapshot.State);
+        Assert.Null(session.Snapshot.Remaining);
+    }
+
+    [Fact]
     public void Stages_accumulate_only_running_time_and_persist_cancellation_counts()
     {
         var job = files.Job(); var time = new ManualTime(); var stages = new PersonClipTaskState(job, time); job.PersonClipStages = stages;
@@ -199,14 +229,14 @@ public sealed class MultiStageTests(PersonClipStageFiles files)
         public string Stamp(string id) => stamp;
         public Task<bool> IsInstalledAsync(string id, CancellationToken ct) => Task.FromResult(true);
     }
-    private sealed class FakeEngine : IMediaEngine
+    private sealed class FakeEngine(MediaInfo? info = null) : IMediaEngine
     {
         public int Probes;
         public AppSettings Settings { get; } = new();
         public string FFmpeg => "never-run-ffmpeg";
         public string FFprobe => "never-run-ffprobe";
         public Task<MediaInfo> Probe(string path, CancellationToken ct = default, int videoStreamIndex = 0, int audioStreamIndex = 0)
-        { Interlocked.Increment(ref Probes); return Task.FromResult(Info); }
+        { Interlocked.Increment(ref Probes); return Task.FromResult(info ?? Info); }
         public Task Execute(Job job, Action<double> progress, CancellationToken ct) => throw new NotSupportedException();
         public Task<byte[]> Thumbnail(string input, double seconds, int width = 640, int height = 360, CancellationToken ct = default, bool pad = true, int videoStreamIndex = 0, bool endExclusive = false) => throw new NotSupportedException();
         public Task<double> AdjacentFrameTime(string input, double seconds, int direction, CancellationToken ct = default, int videoStreamIndex = 0) => throw new NotSupportedException();

@@ -65,7 +65,7 @@ internal sealed class PersonDetectorSet : IDisposable
     private (int Left, int Top, int Width, int Height) _content;
     public int FrameSize => _detectors.Max(detector => detector.Definition.InputSize);
     public string Name => string.Join(" + ", _detectors.Select(detector => detector.Definition.Name));
-    public string Backend => string.Join(" · ", _detectors.Select(detector => detector.Definition.Name + ": " + detector.Session.Backend));
+    public string Backend => PersonClipPresentation.Backend(Statistics);
     public PersonDetectorStatistics[] Statistics => _detectors.Select(detector => new PersonDetectorStatistics(
         detector.Definition.Id, detector.Definition.Name, detector.Evaluations, detector.PositiveFrames,
         detector.Session.Backend, detector.Session.FallbackReason)).ToArray();
@@ -95,13 +95,7 @@ internal sealed class PersonDetectorSet : IDisposable
         catch { result.Dispose(); throw; }
     }
 
-    public void SetFrameGeometry(MediaInfo info)
-    {
-        var scale = FrameSize / (double)Math.Max(info.Width, info.Height);
-        var width = Math.Clamp((int)Math.Round(info.Width * scale), 1, FrameSize);
-        var height = Math.Clamp((int)Math.Round(info.Height * scale), 1, FrameSize);
-        _content = ((FrameSize - width) / 2, (FrameSize - height) / 2, width, height);
-    }
+    public void SetFrameGeometry(MediaInfo info) => _content = PersonClipPreview.Content(info, FrameSize);
 
     public PersonDetectionEvidence[] Detect(byte[] rgb, double threshold, CancellationToken ct) =>
         _detectors.Where(detector => detector.Definition.Id != ModelCatalog.MediaPipePalmId)
@@ -128,7 +122,7 @@ internal sealed class PersonDetectorSet : IDisposable
         detector.Evaluations++;
         if (score >= cutoff) detector.PositiveFrames++;
         return new(definition.Id, score, cutoff, detector.Session.Backend)
-        { Boxes = PersonDetectionGeometry.ToPreview(detector.Boxes, definition, FrameSize, _content) };
+        { Boxes = PersonDetectionGeometry.ToPreview(detector.Boxes, definition, _content) };
     }
 
     private static double Score(Detector detector, double threshold, CancellationToken ct)

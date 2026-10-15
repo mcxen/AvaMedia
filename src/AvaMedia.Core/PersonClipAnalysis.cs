@@ -1,6 +1,3 @@
-using SkiaSharp;
-using System.Runtime.InteropServices;
-
 namespace AvaMedia.Core;
 
 public sealed record PersonClipOptions(double FramesPerSecond = 2, double Threshold = .35,
@@ -93,7 +90,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         if (excluded.Any(range => range.End > duration)) throw new ArgumentException("免检测区间超出视频时长。");
         options = options with { ExcludedRanges = excluded };
         if (reused is null) stages?.Complete(PersonClipStageIds.ReadVideo,
-            $"{info.Width}×{info.Height} · {info.VideoCodec} · {MediaTime.Format(info.Duration)}");
+            PersonClipPresentation.Source(info));
         if (PersonClipExclusions.Subtract([new(0, duration)], excluded).Length == 0)
         {
             observedSeconds = duration;
@@ -111,7 +108,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             stages?.Complete(PersonClipStageIds.Detect, $"复用检测缓存 · {cached.SampledFrames} 帧 · {cached.Segments.Count} 段", StageState.Skipped);
             stages?.Complete(PersonClipStageIds.Refine, $"复用检测缓存 · {cached.Segments.Count} 段", StageState.Skipped);
             foreach (var segment in cached.Segments)
-                activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", cached.Segments.Count);
+                activity.Result($"确认片段 · {PersonClipPresentation.Time(segment.Start)} – {PersonClipPresentation.Time(segment.End)}", cached.Segments.Count);
             activity.Finish("复用检测结果");
             return cached;
         }
@@ -143,10 +140,12 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         activity.Stage("加载人物检测模型");
         activity.Backend(detectors.Backend);
         var bounds = PersonFrameBounds.From(info, size);
+        var content = PersonClipPreview.Content(info, size);
         detectors.SetFrameGeometry(info);
         await using var embedding = options.UseEmbedding ? await GemmaMediaEmbedding.StartAsync(_store, ct, stage => activity.Stage(stage)) : null;
         stages?.Model(_store, detectors.Backend);
-        if (reused is null) stages?.Complete(PersonClipStageIds.PrepareModel, detectors.Backend);
+        stages?.Backend(detectors.Backend, PersonClipPresentation.Note(detectors.Statistics));
+        if (reused is null) stages?.Complete(PersonClipStageIds.PrepareModel, PersonClipPresentation.ModelDetail(detectors.Statistics));
         if (reused is null) stages?.Start(PersonClipStageIds.Detect);
         activity.Node("人物检测");
         activity.Backend(detectors.Backend);
@@ -168,7 +167,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         {
             var end = candidateEnd >= 0 ? candidateEnd : samples.Count;
             candidates.Add((candidateStart, end));
-            activity.Result($"候选片段 {candidates.Count} · {MediaTime.Format(samples[candidateStart].Seconds)} – {MediaTime.Format(end < samples.Count ? samples[end].Seconds : duration)}", candidates.Count);
+            activity.Result($"候选片段 {candidates.Count} · {PersonClipPresentation.Time(samples[candidateStart].Seconds)} – {PersonClipPresentation.Time(end < samples.Count ? samples[end].Seconds : duration)}", candidates.Count);
             candidateStart = candidateEnd = -1;
             PublishPartial();
         }
@@ -248,13 +247,13 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                         nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
                         var label = decision.Skip switch { PersonFrameSkip.Dark => "黑灯", PersonFrameSkip.Blank => "无画面",
                             _ => decision.Uncertain ? "待确认" : decision.Keep ? "保留" : "跳过" };
-                        var png = EncodePng(frame, size);
+                        var png = PersonClipPreview.EncodePng(frame, size, content);
                         progress?.Report(new(seconds, duration, "人物检测") { LiveFrame = new(seconds,
                             sampledFrames, png)
                             { Boxes = decision.Evidence.Where(item => item.Id != ModelCatalog.MediaPipePalmId)
                                 .OrderByDescending(item => item.Boxes.Count).FirstOrDefault()?.Boxes ?? [],
                               PersonCount = decision.Evidence.Where(item => item.Id != ModelCatalog.MediaPipePalmId).Select(item => item.Boxes.Count).DefaultIfEmpty(0).Max() } });
-                        activity.Frame(png, $"{Path.GetFileName(path)} · {MediaTime.Format(seconds)} · {label}");
+                        activity.Frame(png, $"{Path.GetFileName(path)} · {PersonClipPresentation.Time(seconds)} · {label}");
                     }
                     if (previewClock.Elapsed >= nextPreview)
                     {
@@ -262,9 +261,9 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                     }
                     var sampled = sampledFrames;
                     stages?.Update(sampled, planned, "帧", (planned is null ? $"{sampled} 帧" : $"{sampled} / {planned} 帧") + $" · 候选 {candidates.Count + (candidateStart >= 0 ? 1 : 0)} 段");
-                    stages?.Backend(detectors.Backend, string.Join(" · ", detectors.Statistics.Where(d => d.FallbackReason is not null).Select(d => d.Name + ": " + d.FallbackReason)));
+                    stages?.Backend(detectors.Backend, PersonClipPresentation.Note(detectors.Statistics));
                     activity.Backend(detectors.Backend);
-                    activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 黑灯排除 {darkFrames} 帧 · 无画面排除 {blankFrames} 帧 · 免检测 {MediaTime.Format(excludedSeconds)} · 候选 {candidates.Count + (candidateStart >= 0 ? 1 : 0)} 段");
+                    activity.Advance(observedSeconds, duration, "秒", $"模型计算 {inferredFrames} 帧 · 黑灯排除 {darkFrames} 帧 · 无画面排除 {blankFrames} 帧 · 免检测 {PersonClipPresentation.Time(excludedSeconds)} · 候选 {candidates.Count + (candidateStart >= 0 ? 1 : 0)} 段");
                 }
                 if (samples.Count == 0) throw new InvalidDataException("视频未解码出可分析的画面。");
                 if (candidateStart >= 0) CompleteCandidate();
@@ -312,20 +311,20 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 {
                     await JobExecutionControl.CheckpointAsync(ct).ConfigureAwait(false);
                     var middle = (low + high) / 2;
-                    activity.Advance(refined, boundaries, "处", $"正在定位 {MediaTime.Format(low)} – {MediaTime.Format(high)}");
+                    activity.Advance(refined, boundaries, "处", $"正在定位 {PersonClipPresentation.Time(low)} – {PersonClipPresentation.Time(high)}");
                     var frame = decoded!.At(middle);
                     var result = await ClassifyAsync(detectors, frame, middle, options, bounds, embedding, ct);
                     evidence = result.Evidence;
-                    stages?.Backend(detectors.Backend, string.Join(" · ", detectors.Statistics.Where(d => d.FallbackReason is not null).Select(d => d.Name + ": " + d.FallbackReason)));
+                    stages?.Backend(detectors.Backend, PersonClipPresentation.Note(detectors.Statistics));
                     if (result.Skip == PersonFrameSkip.None && previewClock.Elapsed >= nextPreview)
                     {
                         nextPreview = previewClock.Elapsed + TimeSpan.FromMilliseconds(500);
-                        var png = EncodePng(frame, size);
+                        var png = PersonClipPreview.EncodePng(frame, size, content);
                         var boxes = result.Evidence.Where(item => item.Id != ModelCatalog.MediaPipePalmId)
                             .OrderByDescending(item => item.Boxes.Count).FirstOrDefault()?.Boxes ?? [];
                         progress?.Report(new(middle, duration, "细化片段边界") { LiveFrame = new(middle,
                             sampledFrames + boundaryFrames + 1, png) { Boxes = boxes, PersonCount = boxes.Count } });
-                        activity.Frame(png, $"边界画面 · {MediaTime.Format(middle)} · {(result.Keep ? "保留" : "跳过")}");
+                        activity.Frame(png, $"边界画面 · {PersonClipPresentation.Time(middle)} · {(result.Keep ? "保留" : "跳过")}");
                     }
                     if (result.Skip == PersonFrameSkip.None) boundaryFrames++;
                     if (result.Keep == samples[index - 1].Keep) low = middle; else high = middle;
@@ -355,9 +354,9 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             var segments = retained.Where(interval => interval.End - interval.Start >= options.MinimumSeconds)
                 .Select(interval => new ConversionOptions { Start = interval.Start, End = interval.End }).ToArray();
             // Retained ranges belong to the refinement stage.
-            foreach (var segment in segments) activity.Result($"确认片段 · {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}", segments.Length);
-            activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
-            activity.Stage("分析完成", detail: $"保留 {MediaTime.Format(segments.Sum(segment => segment.End - segment.Start))}");
+            foreach (var segment in segments) activity.Result($"确认片段 · {PersonClipPresentation.Time(segment.Start)} – {PersonClipPresentation.Time(segment.End)}", segments.Length);
+            activity.Result($"分析完成 · {segments.Length} 个片段 · 保留 {PersonClipPresentation.Time(segments.Sum(segment => segment.End - segment.Start))}", segments.Length);
+            activity.Stage("分析完成", detail: $"保留 {PersonClipPresentation.Time(segments.Sum(segment => segment.End - segment.Start))}");
             activity.Finish("分析完成");
             var result = new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
                 inferredFrames, boundaryFrames, detectors.Backend)
@@ -390,20 +389,9 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         // Semantics only resolves weak evidence; it cannot bypass an explicit cross-confirmation rule.
         if (embedding is not null && uncertain && options.DetectionMode != PersonDetectionMode.Consensus)
         {
-            var margin = await embedding.PersonMarginAsync(EncodePng(rgb, detectors.FrameSize), ct);
+            var margin = await embedding.PersonMarginAsync(PersonClipPreview.EncodePng(rgb, detectors.FrameSize), ct);
             keep |= margin >= .03 || options.KeepUncertain && Math.Abs(margin) < .03;
         }
         return new(seconds, keep, uncertain, evidence);
-    }
-    private static byte[] EncodePng(byte[] rgb, int size)
-    {
-        using var bitmap = new SKBitmap(size, size, SKColorType.Rgba8888, SKAlphaType.Opaque);
-        var rgba = new byte[size * size * 4];
-        for (var pixel = 0; pixel < size * size; pixel++)
-        { rgba[pixel * 4] = rgb[pixel * 3]; rgba[pixel * 4 + 1] = rgb[pixel * 3 + 1]; rgba[pixel * 4 + 2] = rgb[pixel * 3 + 2]; rgba[pixel * 4 + 3] = 255; }
-        Marshal.Copy(rgba, 0, bitmap.GetPixels(), rgba.Length);
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 80);
-        return data.ToArray();
     }
 }

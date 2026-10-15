@@ -119,16 +119,16 @@ public sealed class PersonClipService(MediaEngine engine)
         ct.ThrowIfCancellationRequested(); CheckSource();
         job.Duration = result.Info.Duration;
         job.AppendLog(result.FromCache ? $"复用检测缓存：{result.Segments.Count} 个片段，本次无需模型计算。"
-            : $"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {MediaTime.Format(result.ExcludedSeconds)}；{result.Backend}");
-        job.AppendLog($"人物检测耗时：{MediaEngine.Number(stages.Capture().Summary.Stages.Take(4).Sum(s => s.Status.Elapsed?.TotalSeconds ?? 0))} 秒");
+            : $"人物检测：模型计算 {result.InferredFrames} 帧；复用 {result.ReusedFrames} 帧；黑灯排除 {result.DarkFrames} 帧；无画面排除 {result.BlankFrames} 帧；免检测 {PersonClipPresentation.Time(result.ExcludedSeconds)}；{result.Backend}");
+        job.AppendLog($"人物检测耗时：{PersonClipPresentation.Time(stages.Capture().Summary.Stages.Take(4).Sum(s => s.Status.Elapsed?.TotalSeconds ?? 0))}");
         foreach (var detector in result.FromCache ? [] : result.Detectors)
-            if (detector.FallbackReason is { } reason) job.AppendLog($"{detector.Name} GPU 回退 CPU：{reason}");
-        foreach (var segment in result.Segments) job.AppendLog($"保留 {MediaTime.Format(segment.Start)} – {MediaTime.Format(segment.End)}");
+            if (detector.FallbackReason is { } reason) job.AppendLog($"{detector.Name} GPU 回退 CPU：{PersonClipPresentation.Fallback(reason)}");
+        foreach (var segment in result.Segments) job.AppendLog($"保留 {PersonClipPresentation.Time(segment.Start)} – {PersonClipPresentation.Time(segment.End)}");
         var detected = new PersonDetectionTaskResult(result, bytes, modified);
         await AiTaskResults.SaveAsync(spec.AnalysisOnly ? job.Output : AiTaskResults.PathFor(job, "people"), detected, ct).ConfigureAwait(false);
         job.PersonDetectionResult = detected;
         if (stages.Capture().Summary.Stages[3].Status.State is StageState.Active or StageState.Paused)
-            stages.Complete(PersonClipStageIds.Refine, $"{stages.Capture().Summary.Stages[3].Status.Current ?? 0} 处边界 · 边界计算 {result.BoundaryFrames} 帧 · {result.Segments.Count} 段 · {MediaTime.Format(result.Segments.Sum(s => s.End - s.Start))}");
+            stages.Complete(PersonClipStageIds.Refine, $"{stages.Capture().Summary.Stages[3].Status.Current ?? 0} 处边界 · 边界计算 {result.BoundaryFrames} 帧 · {result.Segments.Count} 段 · {PersonClipPresentation.Time(result.Segments.Sum(s => s.End - s.Start))}");
         if (spec.AnalysisOnly)
         {
             job.ProgressDetail = result.Segments.Count > 0 ? $"保留 {result.Segments.Count} 个片段 · 可调整后导出" : "没有可保留片段";
@@ -213,7 +213,7 @@ public sealed class PersonClipService(MediaEngine engine)
         }
         finally { Directory.Delete(folder, true); }
         stages.Complete(PersonClipStageIds.Export,
-            $"{MediaTime.Format(result.Segments.Sum(s => s.End - s.Start))} · {new FileInfo(job.Output).Length} 字节");
+            PersonClipPresentation.Export(result.Segments.Sum(s => s.End - s.Start), new FileInfo(job.Output).Length));
 
         void CheckSource()
         {

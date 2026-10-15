@@ -114,7 +114,7 @@ internal static class PersonDetectionGeometry
         return kept.ToArray();
     }
     internal static IReadOnlyList<PersonClipDetectionBox> ToPreview(IReadOnlyList<PersonClipDetectionBox> boxes,
-        PersonDetectorDefinition model, int frameSize, (int Left, int Top, int Width, int Height) content)
+        PersonDetectorDefinition model, (int Left, int Top, int Width, int Height) content)
     {
         var scale = model.InputSize / (double)Math.Max(content.Width, content.Height);
         var width = Math.Clamp((int)Math.Round(content.Width * scale), 1, model.InputSize);
@@ -123,8 +123,8 @@ internal static class PersonDetectionGeometry
         var top = model.Id == ModelCatalog.PersonId ? 0 : (model.InputSize - height) / 2;
         return boxes.Select(box =>
         {
-            double X(double x) => Math.Clamp((content.Left + (x * model.InputSize - left) * content.Width / width) / frameSize, 0, 1);
-            double Y(double y) => Math.Clamp((content.Top + (y * model.InputSize - top) * content.Height / height) / frameSize, 0, 1);
+            double X(double x) => Math.Clamp((x * model.InputSize - left) / width, 0, 1);
+            double Y(double y) => Math.Clamp((y * model.InputSize - top) / height, 0, 1);
             var x = X(box.X); var y = Y(box.Y);
             return box with { X = x, Y = y, Width = Math.Max(0, X(box.X + box.Width) - x), Height = Math.Max(0, Y(box.Y + box.Height) - y) };
         }).Where(box => box.Width > 0 && box.Height > 0).ToArray();

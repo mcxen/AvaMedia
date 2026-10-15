@@ -85,7 +85,7 @@ internal static class PersonClipFrameSource
                 await process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, ct).ConfigureAwait(false);
                 await process.WaitForExitAsync(ct).ConfigureAwait(false);
                 if (process.ExitCode != 0) throw new InvalidDataException("视频分析解码失败：" + await error.ConfigureAwait(false));
-                if (frames == 0) throw new InvalidDataException($"无法解码 {MediaTime.Format(interval.Start)} – {MediaTime.Format(interval.End)} 的检测区间。");
+                if (frames == 0) throw new InvalidDataException($"无法解码 {PersonClipPresentation.Time(interval.Start)} – {PersonClipPresentation.Time(interval.End)} 的检测区间。");
             }
             finally
             {
