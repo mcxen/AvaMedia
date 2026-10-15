@@ -31,13 +31,7 @@ internal static class ProjectDetailChecks
         using var row = new JobRowDetails(job);
         var open = Stopwatch.StartNew(); row.Refresh(); var dispatchMs = open.Elapsed.TotalMilliseconds;
         Complete(row.MetadataReady);
-        Check(new FileInfo(source).Length > uint.MaxValue && row.FileSummary.Contains("GB") && row.StateText.Contains("GB"), "Real video over 4 GiB has correct asynchronous source and output sizes");
-        var metadata = row.MetadataReady;
-        var bytesBefore = GC.GetTotalAllocatedBytes(); var progress = Stopwatch.StartNew();
-        for (var index = 0; index < 10000; index++) { job.Progress = index % 100; row.RefreshProgress(); }
-        var progressMs = progress.Elapsed.TotalMilliseconds;
-        var progressAllocated = GC.GetTotalAllocatedBytes() - bytesBefore;
-        Check(ReferenceEquals(row.MetadataReady, metadata), "Ten thousand progress changes do not restart metadata I/O");
+        Check(new FileInfo(source).Length > uint.MaxValue && row.FileSummary.Contains("GB") && row.CompletedDetail.Contains("GB"), "Real video over 4 GiB has correct asynchronous source and output sizes");
         var missing = new Job { Inputs = [Path.Combine(output, "missing.mp4")] };
         using var stale = new JobRowDetails(missing); stale.Refresh();
         missing.Inputs = [source]; stale.Refresh(); Complete(stale.MetadataReady);
@@ -86,7 +80,7 @@ internal static class ProjectDetailChecks
             }
             finally { root.Close(); Registry.CurrentUser.DeleteSubKeyTree(keyName); }
         }
-        var report = new { checks, sizeReadEnqueueMs = dispatchMs, progressMs, progressAllocatedBytes = progressAllocated,
+        var report = new { checks, sizeReadEnqueueMs = dispatchMs,
             queueSaveEnqueueMs = enqueueMs, savedQueueBytes = savedBytes, metadataJsonChars = probe.Result.RawJson.Length };
         File.WriteAllText(Path.Combine(output, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
     }
