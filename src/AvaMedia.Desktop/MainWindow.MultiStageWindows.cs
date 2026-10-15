@@ -17,6 +17,11 @@ public partial class MainWindow
         _ => false
     };
 
+    internal void ShowCurrentTaskPage(Job job)
+    {
+        if (_aiTaskWindows.TryGetValue(job.Id, out var window) && window is TaskLifecycleWindow lifecycle) lifecycle.ShowCurrentPage();
+    }
+
     private void ShowMultiStageWindow(Job job)
     {
         var (session, content, label) = CreateMultiStage(job);

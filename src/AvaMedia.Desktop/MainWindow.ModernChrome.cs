@@ -76,11 +76,14 @@ public partial class MainWindow
 
     private void RefreshTaskSummary()
     {
-        var running = _jobs.Count(job => job.State is JobState.Running or JobState.Stopping);
+        var running = _jobs.Count(job => job.State is JobState.Running or JobState.Stopping or JobState.AwaitingUser);
+        var awaiting = _jobs.Count(job => job.State == JobState.AwaitingUser);
         var waiting = _jobs.Count(job => job.State is JobState.Waiting or JobState.Paused);
         var failed = _jobs.Count(job => job.State == JobState.Failed);
         TaskSummaryText.IsVisible = ModernChrome;
-        var summary = Localization.Format($"{running} 个进行中 · {waiting} 个等待 · {failed} 个失败");
+        var summary = Localization.Format($"{running} 个进行中")
+            + (awaiting > 0 ? " · " + Localization.Format($"其中 {awaiting} 个等待你操作") : "")
+            + " · " + Localization.Format($"{waiting} 个等待 · {failed} 个失败");
         // Keep real storage/options errors visible in the status bar; only remove its old counts.
         if (ModernChrome)
         {

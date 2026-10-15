@@ -31,6 +31,7 @@ internal sealed class TaskStageCard : StackPanel
 
     public void Update(JobStageSummary summary, TaskRowStatus status)
     {
+        if (summary.Pages.Count > 0) { UpdatePages(summary); return; }
         var stages = summary.Stages;
         var index = summary.State == JobState.Failed && stages.FirstOrDefault(s => s.Id == summary.FailedStageId) is { } failed
             ? IndexOf(stages, failed) : summary.CurrentIndex;
@@ -59,6 +60,26 @@ internal sealed class TaskStageCard : StackPanel
         _footer.IsVisible = _footerLine.IsVisible = footer.Length > 0;
     }
 
+    private void UpdatePages(JobStageSummary summary)
+    {
+        var index = summary.Pages.ToList().FindIndex(page => page.Page.Id == summary.CurrentPageId);
+        _title.Text = Localization.Format($"任务页 {index + 1}/{summary.Pages.Count}");
+        _overall.Text = Localization.Format($"用时 {TaskRowStatus.Clock(TimeSpan.FromTicks(summary.Pages.Sum(page => page.Elapsed.Ticks)))}");
+        while (_rows.Children.Count > summary.Pages.Count) _rows.Children.RemoveAt(_rows.Children.Count - 1);
+        for (var i = 0; i < summary.Pages.Count; i++)
+        {
+            var page = summary.Pages[i];
+            if (i >= _rows.Children.Count) _rows.Children.Add(new StageRow());
+            var state = page.State switch { PageState.Completed => StageState.Done, PageState.Running => StageState.Active,
+                PageState.Failed => StageState.Failed, _ => StageState.Pending };
+            ((StageRow)_rows.Children[i]).Update(i + 1, new(page.Page.Id, page.Page.Title, state)
+                { Detail = page.State == PageState.AwaitingUser ? "等待你操作" : page.Detail, Elapsed = page.Elapsed }, i == index, summary,
+                page.State == PageState.AwaitingUser ? "awaiting" : null);
+        }
+        _footer.Text = Localization.Text(summary.State == JobState.AwaitingUser ? "等待期间不计时，点击“去处理”继续" : "点击任务页可回看已完成步骤");
+        _footer.IsVisible = _footerLine.IsVisible = true;
+    }
+
     private static int IndexOf(IReadOnlyList<JobStageItem> stages, JobStageItem stage)
     { for (var i = 0; i < stages.Count; i++) if (ReferenceEquals(stages[i], stage)) return i; return -1; }
     private static void Text(TextBlock text, string brush)
@@ -84,10 +105,10 @@ internal sealed class TaskStageCard : StackPanel
             Child = grid;
         }
 
-        public void Update(int number, JobStageItem stage, bool current, JobStageSummary summary)
+        public void Update(int number, JobStageItem stage, bool current, JobStageSummary summary, string? glyph = null)
         {
             _glyph.Number = number;
-            _glyph.State = TaskRowStatus.Segment(stage.State);
+            _glyph.State = glyph ?? TaskRowStatus.Segment(stage.State);
             _title.Text = Localization.Text(stage.Title);
             Text(_title, stage.State is StageState.Pending ? "UiTextSecondary" : "UiText");
             var detail = stage.Detail.Length > 0 ? Localization.Text(stage.Detail)

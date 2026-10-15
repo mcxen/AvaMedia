@@ -5,7 +5,7 @@ using static AvaMedia.Controls.ComponentResources;
 
 namespace AvaMedia.Controls;
 
-/// <summary>One segment of a <see cref="StageBar"/>. State: pending, active, paused, done, failed, skipped, cancelled.
+/// <summary>One segment of a <see cref="StageBar"/>. State: pending, active, awaiting, paused, done, failed, skipped, cancelled.
 /// Fraction (0..1) fills the active / paused segment; null shows the active segment as a soft indeterminate fill.</summary>
 public sealed record StageBarSegment(string State, double? Fraction = null);
 
@@ -73,6 +73,9 @@ public sealed class StageBar : Control
                 case "done": Fill(Done, rect); break;
                 case "failed": Fill(Failed, rect); break;
                 case "cancelled": Fill(Cancelled, rect); break;
+                case "awaiting":
+                    if (Active is { } accent) context.DrawRectangle(null, new Pen(accent, 1), rect.Deflate(.5), radius, radius);
+                    break;
                 case "skipped":
                     if (Track is { } outline) context.DrawRectangle(null, new Pen(outline, 1), rect.Deflate(.5), radius, radius);
                     break;

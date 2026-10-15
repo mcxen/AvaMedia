@@ -23,7 +23,7 @@ public sealed class TaskSection(TaskSectionKind kind)
 
     public static TaskSectionKind KindOf(Job job) => job.State switch
     {
-        JobState.Running or JobState.Stopping or JobState.Paused => TaskSectionKind.Active,
+        JobState.Running or JobState.Stopping or JobState.Paused or JobState.AwaitingUser => TaskSectionKind.Active,
         JobState.Waiting => TaskSectionKind.Queued,
         _ => TaskSectionKind.Finished
     };

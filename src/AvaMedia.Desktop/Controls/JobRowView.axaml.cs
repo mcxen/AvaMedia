@@ -253,10 +253,12 @@ public partial class JobRowView : UserControl
         e.Handled = true;
         if (_owner is null || _details is null) return;
         await _owner.ShowRowTaskAsync(_details.Job);
+        if (_details.Job.State == JobState.AwaitingUser) _owner.ShowCurrentTaskPage(_details.Job);
     }
     private void RefreshRowActions(Job job)
     {
         if (_owner is null) return;
+        ViewResultButton.Content = Localization.Text(job.State == JobState.AwaitingUser ? "去处理" : "查看任务");
         RunTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Paused or JobState.Failed;
         RunTaskButton.IsEnabled = _owner.CanRunRowTask(job);
         RunTaskIcon.Kind = job.State == JobState.Failed ? "rotate-cw" : "play";
@@ -266,7 +268,7 @@ public partial class JobRowView : UserControl
         ToolTip.SetTip(RunTaskButton, label); AutomationProperties.SetName(RunTaskButton, label);
         PauseTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Running;
         PauseTaskButton.IsEnabled = _owner.CanPauseRowTask(job);
-        StopTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Paused or JobState.Running;
+        StopTaskButton.IsVisible = job.State is JobState.Waiting or JobState.Paused or JobState.Running or JobState.AwaitingUser;
         StopTaskButton.IsEnabled = _owner.CanStopRowTask(job);
     }
     private async void RunTaskClick(object? sender, RoutedEventArgs e)

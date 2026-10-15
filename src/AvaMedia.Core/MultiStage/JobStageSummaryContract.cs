@@ -40,6 +40,10 @@ public sealed record JobStageSummary
     /// <summary>True when the job has more than one planned stage (drives the segmented stage bar).</summary>
     public bool IsMultiStage { get; init; }
     public IReadOnlyList<JobStageItem> Stages { get; init; } = [];
+    /// <summary>Durable lifecycle pages, when the tool includes user interaction. Stages still describes processing internals.</summary>
+    public IReadOnlyList<TaskPageStatus> Pages { get; init; } = [];
+    public string CurrentPageId { get; init; } = "";
+    [JsonIgnore] public TaskPageStatus? CurrentPage => Pages.FirstOrDefault(page => page.Page.Id == CurrentPageId);
     /// <summary>Index of the active, paused, failed or cancelled stage; -1 when none.</summary>
     public int CurrentIndex { get; init; } = -1;
     /// <summary>Overall 0..1; null when indeterminate (e.g. a single-stage job without a known total).</summary>

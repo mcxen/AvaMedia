@@ -193,7 +193,7 @@ internal sealed class JobStageSummaryPublisher
         if (args.PropertyName is nameof(Job.StageSummary) or nameof(Job.State)) return;
         if (args.PropertyName is nameof(Job.PersonClipStages))
         { Refresh(); return; }
-        if (args.PropertyName is nameof(Job.FeatureId) or nameof(Job.Options) or nameof(Job.PersonClipStartStageId) or nameof(Job.Inputs) or nameof(Job.Output))
+        if (args.PropertyName is nameof(Job.Lifecycle) or nameof(Job.FeatureId) or nameof(Job.Options) or nameof(Job.PersonClipStartStageId) or nameof(Job.Inputs) or nameof(Job.Output))
         {
             lock (_job.StageSummaryGate) { _generation++; _lastRetry = 0; _retryId = ""; }
             Refresh(force: true); return;
@@ -314,6 +314,7 @@ internal sealed class JobStageSummaryPublisher
         return new()
         {
             State = state, IsMultiStage = !single, Stages = Array.AsReadOnly(items), CurrentIndex = current,
+            Pages = _job.Lifecycle?.Pages.Select(page => page with { Result = null }).ToArray() ?? [], CurrentPageId = _job.Lifecycle?.Current.Page.Id ?? "",
             OverallFraction = fraction, StageFraction = current >= 0 ? items[current].Fraction : null,
             Elapsed = state == JobState.Waiting ? TimeSpan.Zero : Elapsed(), IsClockRunning = state == JobState.Running,
             SnapshotUtc = Time.GetUtcNow().UtcDateTime, Remaining = state == JobState.Running ? _job.Estimate?.Remaining : null,
@@ -325,7 +326,8 @@ internal sealed class JobStageSummaryPublisher
     }
 
     private static bool Equivalent(JobStageSummary a, JobStageSummary b) =>
-        a with { Stages = b.Stages, Revision = b.Revision, SnapshotUtc = b.SnapshotUtc } == b && a.Stages.SequenceEqual(b.Stages);
+        a with { Stages = b.Stages, Pages = b.Pages, Revision = b.Revision, SnapshotUtc = b.SnapshotUtc } == b
+        && a.Stages.SequenceEqual(b.Stages) && a.Pages.SequenceEqual(b.Pages);
 
     private TimeSpan Elapsed() => _elapsed + (_running ? Time.GetElapsedTime(_runningSince) : TimeSpan.Zero);
     private static double? Fraction(double? value) => value is { } n && double.IsFinite(n) ? Math.Clamp(n, 0, 1) : null;

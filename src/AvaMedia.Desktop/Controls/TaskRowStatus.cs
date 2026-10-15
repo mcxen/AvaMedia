@@ -38,17 +38,46 @@ internal sealed record TaskRowStatus
             State = state,
             Pill = unchanged ? "waiting" : state switch
             {
-                JobState.Running => "running", JobState.Paused => "paused", JobState.Failed => "failed",
+                JobState.Running or JobState.AwaitingUser => "running", JobState.Paused => "paused", JobState.Failed => "failed",
                 JobState.Completed => "completed", JobState.Cancelled => "cancelled", _ => "waiting"
             },
             PillText = Localization.Text(unchanged ? "无需瘦身" : state switch
             {
-                JobState.Running => "进行中", JobState.Paused => "已暂停", JobState.Failed => "失败",
+                JobState.AwaitingUser => "等待你操作", JobState.Running => "进行中", JobState.Paused => "已暂停", JobState.Failed => "失败",
                 JobState.Completed => "已完成", JobState.Cancelled => "已取消", JobState.Stopping => "正在停止", _ => "等待"
             })
         };
         var error = (current?.Error is { Length: > 0 } reported ? reported : job.Error).Trim();
+        if (current?.Pages.Count > 0) return LifecyclePages(status, current, error, completedDetail);
         return multi ? MultiStage(status, current, summary!, error, completedDetail) : SingleStage(status, job, current, error, completedDetail, unchanged);
+    }
+
+    private static TaskRowStatus LifecyclePages(TaskRowStatus status, JobStageSummary summary, string error, string completedDetail)
+    {
+        var pages = summary.Pages;
+        var current = summary.CurrentPage;
+        var index = pages.ToList().FindIndex(page => page.Page.Id == summary.CurrentPageId);
+        var segments = pages.Select(page => new StageBarSegment(page.State switch
+        {
+            PageState.Completed => "done", PageState.AwaitingUser when status.State == JobState.AwaitingUser => "awaiting",
+            PageState.Failed => "failed", PageState.Running => status.State == JobState.Paused ? "paused" : "active", _ => "pending"
+        }, page.State == PageState.Running ? summary.OverallFraction : null)).ToArray();
+        var detail = status.State switch
+        {
+            JobState.AwaitingUser => "",
+            JobState.Failed => error,
+            JobState.Completed => completedDetail,
+            _ => Localization.Text(summary.ActivityText)
+        };
+        return status with
+        {
+            Segments = segments,
+            Title = status.State == JobState.Completed ? "" : Localization.Text(current?.Page.Title ?? ""),
+            Text = Join(status.State == JobState.Completed ? "" : Localization.Format($"{index + 1}/{pages.Count}"), detail),
+            Meta = status.State == JobState.Running ? Join(summary.OverallFraction is { } f ? Percent(f * 100, 0) : "", Remaining(summary)) : "",
+            IsError = status.State == JobState.Failed, RetryStageId = summary.RetryStageId,
+            RetryStageTitle = summary.Stages.FirstOrDefault(stage => stage.Id == summary.RetryStageId)?.Title ?? ""
+        };
     }
 
     private static TaskRowStatus SingleStage(TaskRowStatus status, Job job, JobStageSummary? summary, string error, string completedDetail, bool unchanged)

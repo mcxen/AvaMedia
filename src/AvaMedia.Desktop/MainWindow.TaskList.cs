@@ -29,7 +29,7 @@ public partial class MainWindow
             List<object> visible = [];
             foreach (var kind in Enum.GetValues<TaskSectionKind>())
             {
-                var jobs = _jobs.Where(job => TaskSection.KindOf(job) == kind).ToArray();
+                var jobs = _jobs.Where(job => TaskSection.KindOf(job) == kind).OrderBy(job => job.State == JobState.AwaitingUser ? 0 : 1).ToArray();
                 if (jobs.Length == 0) continue;
                 var section = _taskSections[kind];
                 section.Update(jobs.Length, kind == TaskSectionKind.Finished ? jobs.Count(job => job.State == JobState.Failed) : 0,

@@ -9,6 +9,7 @@
 
     <Style Selector="TextBlock.queue-state"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
     <Style Selector="TextBlock.queue-state.running"><Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
+    <Style Selector="TextBlock.queue-state.awaitinguser"><Setter Property="Foreground" Value="{DynamicResource UiAccent}"/></Style>
     <Style Selector="TextBlock.queue-state.completed"><Setter Property="Foreground" Value="{DynamicResource UiSuccess}"/></Style>
     <Style Selector="TextBlock.queue-state.failed"><Setter Property="Foreground" Value="{DynamicResource UiDanger}"/></Style>
     <Style Selector="TextBlock.queue-state.cancelled"><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
