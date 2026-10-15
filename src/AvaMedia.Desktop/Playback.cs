@@ -18,7 +18,8 @@ internal sealed class Playback : IPlaybackSession
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Session? _session;
     private byte[]? _frameBuffer;
-    private bool _disposed, _hasAudio, _muted;
+    private volatile bool _disposed;
+    private bool _hasAudio, _muted;
     private float _volume = 1;
     private int _videoStreamIndex, _audioStreamIndex, _startedProcesses;
     private double _frameRate = 25;
@@ -289,8 +290,14 @@ internal sealed class Playback : IPlaybackSession
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _frameBuffer = null; _session?.Cancellation.Cancel(); _ = Release();
-        async Task Release() { await Stop(); Frame.Dispose(); }
+        _disposed = true;
+        _ = Task.Run(Release);
+        async Task Release()
+        {
+            _frameBuffer = null;
+            try { await Stop(); }
+            finally { Frame.Dispose(); }
+        }
     }
 
     private sealed class Session(double start, double end, double speed)
