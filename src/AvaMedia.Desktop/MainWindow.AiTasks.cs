@@ -59,6 +59,7 @@ public partial class MainWindow
 
     private async Task ShowOrientationResultAsync(Job job)
     {
+        if (job.Lifecycle is not null) { await ShowAiTaskAsync(job); return; }
         var result = job.OrientationResult ?? await AiTaskResults.LoadAsync<OrientationTaskResult>(job.Output);
         if (result is null) throw new IOException("方向检测结果缺失，请重新检测。");
         var source = new FileInfo(job.Inputs[0]);
@@ -89,7 +90,14 @@ public partial class MainWindow
     {
         if (!CanViewAiTask(job)) return Task.CompletedTask;
         if (job.Options.VlRename is not null) return OpenExclusiveRenamerAsync(this, job);
-        if (_aiTaskWindows.TryGetValue(job.Id, out var existing)) { Controls.WindowChrome.Present(existing); return Task.CompletedTask; }
+        if (_aiTaskWindows.TryGetValue(job.Id, out var existing))
+        {
+            Controls.WindowChrome.Present(existing);
+            // Restore is asynchronous on native window managers; focus after the restore notification.
+            Avalonia.Threading.DispatcherTimer.RunOnce(() =>
+            { if (_aiTaskWindows.GetValueOrDefault(job.Id) == existing) existing.Activate(); }, TimeSpan.FromMilliseconds(100));
+            return Task.CompletedTask;
+        }
         if (UsesMultiStageWindow(job)) { ShowMultiStageWindow(job); return Task.CompletedTask; }
         // Other AI conversions (voice/audio enhance, delogo, plain rotation) are ordinary queue jobs: the task details window covers them.
         return ShowTaskDetailsAsync(job);

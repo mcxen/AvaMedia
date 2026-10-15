@@ -168,7 +168,9 @@ public partial class MainWindow
         var name = directory ? Path.GetFileName(job.Output) : Path.GetFileNameWithoutExtension(job.Output);
         var reserved = EditingReservations(job).Concat(_jobs.SelectMany(item => item.Inputs));
         if (reserveOriginal) reserved = reserved.Append(job.Output);
-        return MediaEngine.UniqueOutput(Path.GetDirectoryName(job.Output)!, name, job.Options.Format, reserved, directory);
+        var format = job.Options.Orientation is not null && job.Lifecycle?.Current.Page.Id is "export" or "done"
+            ? Path.GetExtension(job.Output).TrimStart('.') : job.Options.Format;
+        return MediaEngine.UniqueOutput(Path.GetDirectoryName(job.Output)!, name, format, reserved, directory);
     }
 
     private async Task RestartTasksAsync(Job[] jobs, string? fromStageId = null)
@@ -177,7 +179,7 @@ public partial class MainWindow
         if (restarting.Length == 0) return;
         foreach (var job in restarting)
         {
-            if (job.Lifecycle?.Current.Page.Id is "merge" or "generate" && (fromStageId is not null || job.State is JobState.Failed or JobState.Cancelled))
+            if (job.Lifecycle?.Current.Page.Id is "merge" or "generate" or "export" && (fromStageId is not null || job.State is JobState.Failed or JobState.Cancelled))
             {
                 if (File.Exists(job.Output)) job.Output = NextTaskOutput(job);
                 job.Error = ""; job.State = JobState.Waiting; continue;
@@ -187,6 +189,8 @@ public partial class MainWindow
             {
                 ResetTask(job); SubtitleLifecycle.PrepareRecognition(job); continue;
             }
+            if (job.Options.Orientation is not null && job.Lifecycle is not null)
+            { ResetTask(job); job.Output = AiTaskResults.PathFor(job, "orientation"); continue; }
             if (job.FeatureId == "person-clip")
             {
                 // A stage retry retains durable detection/summary files; an ordinary rerun starts afresh.

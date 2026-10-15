@@ -14,11 +14,12 @@ internal sealed class EntryParameters : StackPanel
     private readonly Window _window;
     private readonly Action _save;
     private readonly AppSettings _settings;
+    private readonly Func<IEnumerable<string>> _reserved;
     private bool _ready;
 
-    internal EntryParameters(Job job, Window window, AppSettings settings, Action save)
+    internal EntryParameters(Job job, Window window, AppSettings settings, Action save, Func<IEnumerable<string>> reserved)
     {
-        _job = job; _window = window; _settings = settings; _save = save;
+        _job = job; _window = window; _settings = settings; _save = save; _reserved = reserved;
         Bind(SpacingProperty, new DynamicResourceExtension("AcGap"));
         switch (job.FeatureId)
         {
@@ -56,7 +57,7 @@ internal sealed class EntryParameters : StackPanel
     {
         var items = values.ToArray();
         var input = new ComboBox { ItemsSource = items, SelectedItem = value, Classes = { "ac" }, HorizontalAlignment = HorizontalAlignment.Left };
-        if (title is not null) input.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<T>((item, _) => MsUi.Caption(title(item!)));
+        if (title is not null) input.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<T>((item, _) => MsUi.Caption(item is null ? "" : title(item)));
         input.SelectionChanged += (_, _) => { if (input.SelectedItem is T next) { set(next); Changed(); } }; Row(label, input);
     }
     private void Text(string label, string value, Action<string> set)
@@ -153,7 +154,7 @@ internal sealed class EntryParameters : StackPanel
         Number("每分钟 Token 数", spec.LongSummaryTokensPerMinute, 8192, 10000000, 8192, value => spec.LongSummaryTokensPerMinute = (int)value);
         Check("严格顺序处理", spec.StrictSequential, value => spec.StrictSequential = value);
         Folder(Path.GetDirectoryName(_job.Output)!, folder => _job.Output = MediaEngine.UniqueOutput(folder,
-            Path.GetFileName(_job.Output), "", new[] { _job.Output }.Concat(_job.Inputs), directory: true));
+            Path.GetFileName(_job.Output), "", _reserved().Append(_job.Output).Concat(_job.Inputs), directory: true));
     }
     private void Tags()
     {
@@ -172,7 +173,7 @@ internal sealed class EntryParameters : StackPanel
         {
             spec.WriteTextReport = value;
             _job.Options.Format = value ? "txt" : "json";
-            _job.Output = value ? MediaEngine.UniqueOutput(Path.GetDirectoryName(_job.Inputs[0])!, Path.GetFileNameWithoutExtension(_job.Inputs[0]), "txt", [_job.Output, .._job.Inputs])
+            _job.Output = value ? MediaEngine.UniqueOutput(Path.GetDirectoryName(_job.Inputs[0])!, Path.GetFileNameWithoutExtension(_job.Inputs[0]), "txt", _reserved().Append(_job.Output).Concat(_job.Inputs))
                 : AiTaskResults.InternalOutputFor(_job);
         });
     }

@@ -55,7 +55,7 @@ internal static class MultiStageEntry
             "person-clip" => new ConversionOptions { Format = "json", PersonClip = new() { AnalysisOnly = true,
                 Detection = storage.LoadToolOptions<PersonClipOptions>(feature.Id) ?? new() } },
             "auto-subtitle" => new() { Format = "srt", Transcription = storage.LoadToolOptions<TranscriptionOptions>(feature.Id) ?? new() },
-            "rotate" => new() { Format = "json", Orientation = new(SourceOutput.Original, settings.OutputFolder, settings.OutputToSource, false) },
+            "rotate" => new() { Format = "json", Orientation = new(SourceVideoExport.Original, settings.OutputFolder, settings.OutputToSource, false) },
             "video-summary" => new() { Format = "", VideoSummary = storage.LoadToolOptions<VideoSummaryOptions>(feature.Id)
                 ?? new() { ExtractSubtitles = false, AnalyzeContent = false, Speech = new() { Model = SpeechModel.Base } } },
             _ => new() { Format = "json", MediaTag = new() { WriteTextReport = false } }

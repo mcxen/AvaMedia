@@ -41,7 +41,7 @@ public partial class MainWindow
                 _classificationWindows.Remove(id);
             _classificationWindows[job.Id] = window!; AddToolJobs([job], startImmediately: true);
         }, RequestTaskRunAsync, job => { _queue.Stop(job); Save(); Refresh(); },
-            () => OpenClassificationWindow(), ShowClassificationTasks, _settings, pauseTask: PauseTask, reserveFiles: _queue.ReserveFiles);
+            () => { _ = ConfigureFolderClassificationAsync(null); }, ShowClassificationTasks, _settings, pauseTask: PauseTask, reserveFiles: _queue.ReserveFiles);
         window.Moved += SynchronizeFileChanges;
         window.Closed += (_, _) =>
         {

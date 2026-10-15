@@ -13,6 +13,13 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
 {
     public static void Validate(Job job)
     {
+        if (job.Lifecycle?.Current.Page.Id is "export" or "done")
+        {
+            // The observation may be reloaded by the executor after application restart.
+            if (job.Options.Orientation is null || job.Inputs.Length != 1 || string.IsNullOrWhiteSpace(job.Output))
+                throw new ArgumentException("旋转导出参数无效。");
+            return;
+        }
         if (job.FeatureId != "rotate" || job.Inputs.Length != 1 || !VideoFormats.IsVideo(job.Inputs[0])
             || job.Options.Orientation is null || job.Options.Format != "json" || job.InputOptions is not null)
             throw new ArgumentException("方向检测任务须包含一个视频。");
@@ -23,6 +30,10 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
 
     public async Task Execute(Job job, Action<double> progress, CancellationToken ct)
     {
+        using var lifecycle = job.Lifecycle is not null ? new TaskLifecycle(job, OrientationLifecycle.Pages) : null;
+        if (lifecycle?.CurrentPage.Page.Id == "export")
+        { await OrientationLifecycle.ExportAsync(engine, job, lifecycle, progress, ct).ConfigureAwait(false); return; }
+        lifecycle?.StartProcessing("process");
         var stages = new OrientationTaskState(job);
         job.OrientationStages = stages;
         try
@@ -94,9 +105,10 @@ public sealed class OrientationTaskService(IMediaEngine engine, IVideoOrientatio
             stages.Complete(OrientationStageIds.SaveResult, "已保存方向检测结果");
             stages.Finish(JobState.Completed);
             job.AppendLog(result.Reason); activity.Finish(job.ProgressDetail); progress(100);
+            lifecycle?.CompleteProcessing("process", result.Description);
         }
-        catch (OperationCanceledException) { stages.Finish(JobState.Cancelled); throw; }
-        catch (Exception error) { stages.Finish(JobState.Failed, error.Message); throw; }
+        catch (OperationCanceledException) { stages.Finish(JobState.Cancelled); lifecycle?.Fail("已取消"); throw; }
+        catch (Exception error) { stages.Finish(JobState.Failed, error.Message); lifecycle?.Fail(error.Message); throw; }
     }
     private sealed class InlineProgress(Action<OrientationDetectionProgress> report) : IProgress<OrientationDetectionProgress>
     { public void Report(OrientationDetectionProgress value) => report(value); }
