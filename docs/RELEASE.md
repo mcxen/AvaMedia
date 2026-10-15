@@ -42,7 +42,7 @@ Release 工作流接收 `vMAJOR.MINOR.PATCH` tag，依次执行：
 
 ## macOS 文件打开方式
 
-macOS 发布在签名前运行 `macos/Declare-MediaTypes.py`，从现有视频输入和播放器音频名单生成 `CFBundleDocumentTypes`、`UTImportedTypeDeclarations`。角色为 Viewer、优先级为 Alternate，不强制更改系统默认应用。只安装“天池万象转换.app”；在 Finder 中选择它打开视频或音频时，客户端通过 Avalonia 文件激活事件进入现有天池播放器。运行中的播放器接收后续文件和多文件播放列表。
+macOS 发布在签名前运行 `macos/Declare-MediaTypes.py`，从现有视频输入和播放器音频名单生成 `CFBundleDocumentTypes`、`UTImportedTypeDeclarations`。角色为 Viewer、优先级为 Alternate，不强制更改系统默认应用。只安装“天池万象转换.app”；在 Finder 中选择它打开视频或音频时，客户端先接收首次文件激活，再直接启动天池播放器，不创建转换器主窗口、任务队列或后台转换服务。交互客户端按当前系统用户保持单实例，重复启动会转交请求并退出；应用内外的播放入口共用唯一播放器，接收后续文件和多文件播放列表。普通应用启动或 `--convert` 请求复用转换器；独立播放退出即结束该次客户端。后台 MCP / server 及专用捕获、预览导出、播放器基准命令保留各自生命周期。
 
 如系统尚未刷新候选应用，可在选项页点击“注册播放打开方式”。设置某种文件的默认播放器仍由用户在 Finder“显示简介 → 打开方式 → 全部更改”中选择天池万象转换。
 

@@ -58,7 +58,7 @@ public sealed class MediaPreviewPanel : UserControl, IDisposable
         Grid.SetRow(_seek,2);_root.Children.Add(_seek);
         _actions=new Grid{RowDefinitions=new("Auto,Auto"),RowSpacing=4};_actions.Children.Add(_position);
         var buttons=new WrapPanel();Grid.SetRow(buttons,1);_actions.Children.Add(buttons);
-        _open=Ui.Button("打开预览",()=>{if(_path is null)return;var owner=TopLevel.GetTopLevel(this) as Window;if(owner is null)return;new PlayerWindow(engine,[_path]).ShowForPlayback(owner);});
+        _open=Ui.Button("打开预览",()=>{if(_path is null)return;var owner=TopLevel.GetTopLevel(this) as Window;if(owner is null)return;PlayerWindow.GetOrCreate(engine,[_path]).ShowForPlayback(owner);});
         _open.IsEnabled=false;_open.Margin=new(0,0,6,0);buttons.Children.Add(_open);
         var listen=Ui.Button("试听处理效果",()=>{if(_path is not null&&_options is not null&&TopLevel.GetTopLevel(this) is Window owner)Controls.WindowChrome.ShowIndependent(new VoicePreviewWindow(engine,_path,_options.Clone()));});
         listen.IsVisible=false;listen.Margin=new(0,0,6,0);buttons.Children.Add(listen);

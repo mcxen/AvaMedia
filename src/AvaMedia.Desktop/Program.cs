@@ -23,6 +23,7 @@ internal static class Program
         }
         finally
         {
+            DesktopInstance.Current?.Dispose();
             ApplicationUpdater.Shared.Shutdown();
             AvaMedia.Core.LocalSummaryModel.Shutdown();
         }

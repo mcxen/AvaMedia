@@ -159,7 +159,7 @@ public sealed partial class VideoSummaryResultWindow : Window
                 var current = _player;
                 if (current is null)
                 {
-                    current = new PlayerWindow(_engine); _player = current;
+                    current = PlayerWindow.GetOrCreate(_engine); _player = current;
                     current.Closed += (_, _) => { if (ReferenceEquals(_player, current)) _player = null; };
                 }
                 current.ShowForPlayback(this);

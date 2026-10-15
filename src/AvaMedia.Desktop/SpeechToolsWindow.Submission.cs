@@ -56,7 +56,7 @@ public sealed partial class SpeechToolsWindow
         var play = new Button { Classes = { "ac" }, Content = previewContent, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Left };
         play.Bind(Button.BackgroundProperty, new DynamicResourceExtension("UiMediaOverlay"));
-        play.Click += (_, _) => { if (_sources.SelectedItem is string path) new PlayerWindow(_engine, [path]).ShowForPlayback(this); };
+        play.Click += (_, _) => { if (_sources.SelectedItem is string path) PlayerWindow.GetOrCreate(_engine, [path]).ShowForPlayback(this); };
         _sources.SelectionChanged += (_, _) => play.IsEnabled = _sources.SelectedItem is string;
         Avalonia.Automation.AutomationProperties.SetName(play, "打开预览");
         preview.Children.Add(play); var cover = new Border { Child = preview };

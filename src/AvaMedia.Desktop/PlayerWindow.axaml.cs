@@ -16,6 +16,20 @@ namespace AvaMedia.Desktop;
 
 public partial class PlayerWindow : Window
 {
+    private static PlayerWindow? _shared;
+    internal static PlayerWindow GetOrCreate(IMediaEngine engine, IEnumerable<string>? files = null, AppSettings? settings = null)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (_shared is { } existing)
+        {
+            if (files is not null) existing.OpenFiles(files);
+            return existing;
+        }
+        var player = new PlayerWindow(engine, files, loadedSettings: settings);
+        _shared = player;
+        player.Closed += (_, _) => { if (ReferenceEquals(_shared, player)) _shared = null; };
+        return player;
+    }
     private readonly IMediaEngine _engine;
     private readonly Func<IMediaEngine, string, IPlaybackSession> _factory;
     private readonly IVideoFolderScanner _folderScanner;
@@ -36,6 +50,7 @@ public partial class PlayerWindow : Window
     private string? _loadedFolder;
     private int _folderGeneration;
     private int _fileIndex, _revision;
+    private int _openRequestRevision;
     private bool _updating, _closed, _muted, _playIntent, _pendingSeek, _deleting;
     private double _position, _speed = 1, _lastSpeed = 1;
     private long _positionPublished;
@@ -125,7 +140,7 @@ public partial class PlayerWindow : Window
     public Task OpenAtAsync(string path, double seconds)
     {
         if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
-        return StartOpen(path, 0, 0, seconds, true);
+        return Ready = ReplaceFilesAsync([path], seconds);
     }
     private Task StartOpen(string path, int video, int audio, double position, bool playing, bool allowDeleting = false)
     {
@@ -430,11 +445,24 @@ public partial class PlayerWindow : Window
     }
     public void OpenFiles(IEnumerable<string> files)
     {
-        if (!CanOpenFiles) return;
+        if (_closed || _deleting) return;
         var paths = files.Where(path => File.Exists(path) || NativePlayerRunner.Detect(path) is not null).ToArray();
         if (paths.Length == 0) return;
+        Ready = ReplaceFilesAsync(paths, 0);
+    }
+    private async Task ReplaceFilesAsync(string[] paths, double seconds)
+    {
+        if (_closed || _deleting) return;
+        var request = ++_openRequestRevision;
+        if (_nativeBusy)
+        {
+            // Stop and join the old native process before opening the next file.
+            _nativeCancellation?.Cancel();
+            await _nativeLifetime;
+        }
+        if (_closed || _deleting || request != _openRequestRevision) return;
         SetFiles(paths);
-        Ready = OpenAsync(_playlist[0]);
+        await StartOpen(_playlist[0], 0, 0, seconds, true);
     }
     private Task ChangeFile(int delta)
     { if (_deleting) return Task.CompletedTask; var index = _fileIndex + delta; if (index < 0 || index >= _playlist.Length) return Task.CompletedTask; _fileIndex = index; return OpenAsync(_playlist[index]); }

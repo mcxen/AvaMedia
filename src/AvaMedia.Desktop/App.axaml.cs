@@ -93,6 +93,25 @@ public sealed partial class App : Application
                 base.OnFrameworkInitializationCompleted();
                 return;
             }
+            if (!args.Contains("--capture") && !args.Contains("--player-benchmark"))
+            {
+                MacApplicationStartup.FinishLaunching();
+                args = args.Concat(_startupFiles).Distinct(StringComparer.Ordinal).ToArray();
+                _startupFiles.Clear();
+                if (!DesktopInstance.TryStart(args, request => Dispatcher.UIThread.Post(() => HandleDesktopRequest(request))))
+                {
+                    desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                    Dispatcher.UIThread.Post(() => desktop.Shutdown());
+                    base.OnFrameworkInitializationCompleted(); return;
+                }
+                _desktopReady = true;
+                if (!args.Contains("--convert") && !args.Contains("--ai-tags")
+                    && (args.Contains("--play") || PlaybackPaths(args).Length > 0))
+                {
+                    StartStandalonePlayer(desktop, args);
+                    base.OnFrameworkInitializationCompleted(); return;
+                }
+            }
             if (args.Contains("--ai-tags"))
             {
                 StartMediaAi(desktop, args);
@@ -147,13 +166,6 @@ public sealed partial class App : Application
             FirstRunSetup.AttachFailureNotice(window);
             InitializeModelInstallation(desktop, window, args);
             if (args.Contains("--convert")) window.Opened += async (_, _) => await window.ImportForConversionAsync(args);
-            else if (captureRoot is null && (args.Contains("--play") || args.Any(File.Exists)))
-            {
-                var files = args.Where(path => !path.StartsWith("--", StringComparison.Ordinal) && File.Exists(path)).ToArray();
-                // System-open playback shares the normal shell lifetime, so closing it leaves the queue available.
-                window.Opened += (_, _) => Dispatcher.UIThread.Post(() =>
-                    new PlayerWindow(window.Engine, files, loadedSettings: StartupSettings).ShowForPlayback(window));
-            }
             if (desktop.Args?.Contains("--capture") == true)
             {
                 window.Opened += async (_, _) =>
@@ -237,6 +249,7 @@ public sealed partial class App : Application
     {
         if (args.Kind == ActivationKind.Reopen)
         {
+            if (!_desktopReady) return;
             // Dock reopening is separate from opening a file and must restore a hidden window.
             Dispatcher.UIThread.Post(() =>
             {
@@ -262,7 +275,11 @@ public sealed partial class App : Application
             .Where(File.Exists)
             .Distinct(VideoFolderScanner.PathComparer).ToArray();
         if (paths.Length == 0) return;
-        // Finder can deliver files during startup; defer until the desktop window exists.
+        if (!_desktopReady)
+        {
+            _startupFiles.AddRange(paths);
+            return;
+        }
         Dispatcher.UIThread.Post(() =>
         {
             if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
@@ -270,13 +287,9 @@ public sealed partial class App : Application
             {
                 tags.ImportPaths(paths); tags.Show(); tags.Activate(); return;
             }
-            paths = paths.Where(path => SystemPlayerIntegration.Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)).ToArray();
+            paths = PlaybackPaths(paths);
             if (paths.Length == 0) return;
-            var settings = StartupSettings ?? new Storage().LoadSettings();
-            var engine = desktop.MainWindow is MainWindow main ? main.Engine : new MediaEngine(settings);
-            var player = new PlayerWindow(engine, paths, loadedSettings: settings);
-            if (desktop.MainWindow is { } source) player.ShowForPlayback(source);
-            else player.Show();
+            OpenPlayback(desktop, paths);
         });
     }
 

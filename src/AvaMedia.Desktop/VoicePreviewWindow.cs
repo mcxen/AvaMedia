@@ -32,7 +32,7 @@ internal sealed class VoicePreviewWindow : Window
         Grid.SetRow(_actions, 1); root.Children.Add(_actions);
         var close = Ui.DialogButton("关闭", Close); close.HorizontalAlignment = HorizontalAlignment.Right;
         Grid.SetRow(close, 2); root.Children.Add(close); Content = root;
-        Closed += (_, _) => { _lifetime.Cancel(); _player?.Close(); _ = CleanupAsync(); };
+        Closed += (_, _) => { _lifetime.Cancel(); if (_player is { } player && Path.GetDirectoryName(player.CurrentPath) == _temporary) player.Close(); _ = CleanupAsync(); };
     }
     private Task _preparing = Task.CompletedTask;
     private async Task PlayAsync(bool enhanced)
@@ -57,7 +57,7 @@ internal sealed class VoicePreviewWindow : Window
                     percent => Dispatcher.UIThread.Post(() => { if(!_lifetime.IsCancellationRequested) { _progress.Value = percent; _status.Text = Localization.Text("准备试听") + $" · {percent:0}%"; } }), _lifetime.Token);
             }
             if(_lifetime.IsCancellationRequested) return;
-            if(_player is null) { _player = new PlayerWindow(_engine); _player.Closed += (_, _) => _player = null; }
+            if(_player is null) { _player = PlayerWindow.GetOrCreate(_engine); _player.Closed += (_, _) => _player = null; }
             _player.ShowForPlayback(this);
             await _player.OpenAtAsync(output, 0); _player.Activate(); _status.Text = Localization.Text(enhanced ? "试听增强" : "试听原声");
         }

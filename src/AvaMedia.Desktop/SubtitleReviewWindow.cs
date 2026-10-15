@@ -144,7 +144,7 @@ public sealed class SubtitleReviewWindow : Window
             try
             {
                 var cue = draft.Read();
-                var player = new PlayerWindow(engine, [source.Path]); player.ShowForPlayback(this); await player.Ready;
+                var player = PlayerWindow.GetOrCreate(engine, [source.Path]); player.ShowForPlayback(this); await player.Ready;
                 await player.SeekAsync(request.Options.Start + cue.Start.TotalSeconds * request.Options.Speed, true);
             }
             catch(Exception error) { _notice.Text = error.Message; }

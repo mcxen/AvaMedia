@@ -155,7 +155,7 @@ public sealed partial class MediaAiWindow
         _playSample.Click += async (_, _) =>
         {
             if (_list.SelectedItem is not MediaFileEntry entry || !TryDisplayedResult(entry.Path, out var result)) return;
-            try { MediaTagService.ValidateSource(result); var player = new PlayerWindow(_engine); player.ShowForPlayback(this); await player.OpenAtAsync(result.Path, CursorFor(result)); }
+            try { MediaTagService.ValidateSource(result); var player = PlayerWindow.GetOrCreate(_engine); player.ShowForPlayback(this); await player.OpenAtAsync(result.Path, CursorFor(result)); }
             catch (Exception error) { await Ui.Message(this, "无法播放", error.Message); }
         };
         _saveTxt.Click += async (_, _) => await SaveTextReportsAsync();
