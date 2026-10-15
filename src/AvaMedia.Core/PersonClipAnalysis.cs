@@ -35,6 +35,8 @@ public sealed record PersonClipProgress(double Seconds, double Duration, string 
 public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList<ConversionOptions> Segments, int SampledFrames, int UncertainFrames,
     int InferredFrames, int BoundaryFrames, string Backend)
 {
+    [System.Text.Json.Serialization.JsonConverter(typeof(PersonClipSamplesJsonConverter))]
+    public IReadOnlyList<PersonClipSample>? Samples { get; init; }
     public bool IsPartial { get; init; }
     public double AnalyzedSeconds { get; init; }
     public bool FromCache { get; init; }
@@ -48,6 +50,14 @@ public sealed record PersonClipResult(string Path, MediaInfo Info, IReadOnlyList
 internal sealed record PersonFrame(double Seconds, bool Keep, bool Uncertain, IReadOnlyList<PersonDetectionEvidence> Evidence)
 {
     public PersonFrameSkip Skip { get; init; }
+    public float Score { get; init; }
+    public bool Reused { get; init; }
+
+    internal PersonClipSample ToSample(bool boundary = false) => new(Seconds, Skip == PersonFrameSkip.None ? Score : 0,
+        (Keep ? PersonClipSampleFlags.Person : 0) | (Uncertain ? PersonClipSampleFlags.Uncertain : 0)
+        | (Reused ? PersonClipSampleFlags.Reused : 0) | (boundary ? PersonClipSampleFlags.Boundary : 0)
+        | (Skip switch { PersonFrameSkip.Dark => PersonClipSampleFlags.Dark, PersonFrameSkip.Blank => PersonClipSampleFlags.Blank,
+            PersonFrameSkip.Excluded => PersonClipSampleFlags.Excluded, _ => PersonClipSampleFlags.None }));
 }
 
 public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelStore = null)
@@ -98,7 +108,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             stages?.Complete(PersonClipStageIds.Detect, "已跳过 · 全部视频位于免检测区间", StageState.Skipped);
             stages?.Complete(PersonClipStageIds.Refine, "0 段 · 全部视频位于免检测区间", StageState.Skipped);
             activity.Finish("没有可保留的片段");
-            return new PersonClipResult(path, info, [], 0, 0, 0, 0, "") { AnalyzedSeconds = duration, ExcludedSeconds = duration, DetectionMode = options.DetectionMode };
+            return new PersonClipResult(path, info, [], 0, 0, 0, 0, "") { Samples = [new(0, 0, PersonClipSampleFlags.Excluded)], AnalyzedSeconds = duration, ExcludedSeconds = duration, DetectionMode = options.DetectionMode };
         }
         if (retry?.StageId is null && string.IsNullOrEmpty(retry?.FallbackReason) && await cache.ReadAsync(info, options, ct).ConfigureAwait(false) is { } cached)
         {
@@ -150,6 +160,8 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
         activity.Node("人物检测");
         activity.Backend(detectors.Backend);
         var samples = retry?.Detection?.Samples.ToList() ?? new List<PersonFrame>();
+        var boundarySamples = new List<PersonClipSample>();
+        IReadOnlyList<PersonClipSample> StoredSamples() => samples.Select(sample => sample.ToSample()).Concat(boundarySamples).OrderBy(sample => sample.Seconds).ToArray();
         byte[]? reference = null;
         PersonFrame? previous = null;
         var lastInference = double.NegativeInfinity;
@@ -193,7 +205,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             var partial = new PersonClipResult(path, info, retained,
                 samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
                 inferredFrames, boundaryFrames, detectors.Backend)
-            { IsPartial = observedSeconds < duration, AnalyzedSeconds = observedSeconds, DetectionMode = options.DetectionMode,
+            { Samples = StoredSamples(), IsPartial = true, AnalyzedSeconds = observedSeconds, DetectionMode = options.DetectionMode,
                 DarkFrames = darkFrames, BlankFrames = blankFrames, ExcludedSeconds = excludedSeconds, Detectors = detectors.Statistics.ToArray() };
             progress?.Report(new(observedSeconds, duration, "人物检测") { PreviewResult = partial,
                 OpenSegment = candidateStart >= 0 && candidateEnd < 0 && retained.Length > 0 && retained[^1].End >= samples[candidateStart].Seconds });
@@ -221,7 +233,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                         // Reuse only a confident positive, and recheck at least once a second.
                         if (signature is not null && reference is not null && previous is { Keep: true, Uncertain: false }
                             && seconds - lastInference < 1 && VideoFrameSimilarity.Similar(signature, reference))
-                            samples.Add(previous with { Seconds = seconds });
+                            samples.Add(previous with { Seconds = seconds, Reused = true });
                         else
                         {
                             previous = await ClassifyAsync(detectors, frame!, seconds, options, bounds, embedding, ct, checkVisibility: false);
@@ -272,7 +284,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                 {
                     var rough = new PersonClipResult(path, info, [], samples.Count(f => f.Skip != PersonFrameSkip.Excluded),
                         samples.Count(f => f.Uncertain), inferredFrames, 0, detectors.Backend)
-                    { DarkFrames = darkFrames, BlankFrames = blankFrames, ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration,
+                    { Samples = StoredSamples(), DarkFrames = darkFrames, BlankFrames = blankFrames, ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration,
                         DetectionMode = options.DetectionMode, Detectors = detectors.Statistics };
                     await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "people-detection"),
                         new PersonClipDetectionCheckpoint(rough, samples.Select(sample => sample with { Evidence = [] }).ToArray(), candidates.Select(c => new PersonClipCandidate(c.Start, c.End)).ToArray()), ct).ConfigureAwait(false);
@@ -314,6 +326,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
                     activity.Advance(refined, boundaries, "处", $"正在定位 {PersonClipPresentation.Time(low)} – {PersonClipPresentation.Time(high)}");
                     var frame = decoded!.At(middle);
                     var result = await ClassifyAsync(detectors, frame, middle, options, bounds, embedding, ct);
+                    boundarySamples.Add(result.ToSample(boundary: true));
                     evidence = result.Evidence;
                     stages?.Backend(detectors.Backend, PersonClipPresentation.Note(detectors.Statistics));
                     if (result.Skip == PersonFrameSkip.None && previewClock.Elapsed >= nextPreview)
@@ -360,7 +373,7 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             activity.Finish("分析完成");
             var result = new PersonClipResult(path, info, segments, samples.Count(frame => frame.Skip != PersonFrameSkip.Excluded), samples.Count(frame => frame.Uncertain),
                 inferredFrames, boundaryFrames, detectors.Backend)
-            { Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
+            { Samples = StoredSamples(), Detectors = detectors.Statistics, DetectionMode = options.DetectionMode, DarkFrames = darkFrames, BlankFrames = blankFrames,
                 ExcludedSeconds = excludedSeconds, AnalyzedSeconds = duration };
             await cache.WriteAsync(result, ct).ConfigureAwait(false);
             return result;
@@ -392,6 +405,6 @@ public sealed class PersonClipAnalysis(IMediaEngine engine, ModelStore? modelSto
             var margin = await embedding.PersonMarginAsync(PersonClipPreview.EncodePng(rgb, detectors.FrameSize), ct);
             keep |= margin >= .03 || options.KeepUncertain && Math.Abs(margin) < .03;
         }
-        return new(seconds, keep, uncertain, evidence);
+        return new(seconds, keep, uncertain, evidence) { Score = (float)evidence.Select(item => item.Score).DefaultIfEmpty(0).Max() };
     }
 }
