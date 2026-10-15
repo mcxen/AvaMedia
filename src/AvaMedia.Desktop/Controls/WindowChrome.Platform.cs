@@ -50,6 +50,7 @@ internal static partial class WindowChrome
 
     internal static void RegisterPlatformFrame(Window window)
     {
+        if (!IsApplicationWindow(window)) return;
         var pending = false;
         window.SizeChanged += (_, _) =>
         {
@@ -87,6 +88,7 @@ internal static partial class WindowChrome
     }
     internal static void ApplyPlatformFrame(Window window)
     {
+        if (!IsApplicationWindow(window)) return;
         var classic = Skin.UsesCustomChrome(window.ActualThemeVariant);
         var wasExtended = window.ExtendClientAreaToDecorationsHint;
         var extended = classic && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())

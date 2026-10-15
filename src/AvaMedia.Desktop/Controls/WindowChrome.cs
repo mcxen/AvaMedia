@@ -47,6 +47,7 @@ internal static partial class WindowChrome
     /// <summary>Position memory is independent of native ownership and frame policy.</summary>
     internal static void RegisterToolPlacement(Window window)
     {
+        if (!IsApplicationWindow(window)) return;
         // Media viewers already manage their source-screen placement and size (10.11).
         if (window is MainWindow or PlayerWindow or ImageViewerWindow) return;
         var key = "window-position-" + window.GetType().Name;

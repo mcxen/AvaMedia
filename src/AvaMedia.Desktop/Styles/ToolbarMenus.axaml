@@ -23,7 +23,7 @@
           <BoxShadows x:Key="MbShadow">0 0 0 0.5 #29FFFFFF, 0 12 32 -6 #99000000</BoxShadows>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
-      <x:Double x:Key="MbToolbarHeight">52</x:Double>
+      <x:Double x:Key="MbToolbarHeight">44</x:Double>
       <x:Double x:Key="MbTopHeight">26</x:Double>
       <x:Double x:Key="MbItemHeight">24</x:Double>
       <x:Double x:Key="MbFontSize">13</x:Double>
@@ -36,8 +36,8 @@
       <x:Double x:Key="MbArrowHeight">10</x:Double>
       <x:Double x:Key="MbGlyphStroke">1.6</x:Double>
       <x:Double x:Key="MbSeparatorHeight">0.5</x:Double>
-      <!-- Toolbar remainder 13 + below-bar gap 4 - shadow inset 12. -->
-      <x:Double x:Key="MbTopOffset">5</x:Double>
+      <!-- Toolbar remainder 9 + below-bar gap 4 - shadow inset 12. -->
+      <x:Double x:Key="MbTopOffset">1</x:Double>
       <x:Double x:Key="MbShadowOffset">-12</x:Double>
       <Thickness x:Key="MbTopPadding">10,0</Thickness>
       <Thickness x:Key="MbTopMargin">0,0,6,0</Thickness>

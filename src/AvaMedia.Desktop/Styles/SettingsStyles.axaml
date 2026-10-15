@@ -47,7 +47,6 @@
     <Thickness x:Key="StTitleMargin">272,12,0,0</Thickness>
     <Thickness x:Key="StSidebarMargin">8</Thickness>
     <Thickness x:Key="StSidebarPadding">10</Thickness>
-    <Thickness x:Key="StBrandMargin">8,38,8,12</Thickness>
     <x:Double x:Key="StBrandIconSize">32</x:Double>
     <x:Double x:Key="StBrandGap">10</x:Double>
     <CornerRadius x:Key="StSidebarRadius">13</CornerRadius>
@@ -82,21 +81,22 @@
     <GridLength x:Key="StNavigationIconColumn">20</GridLength>
     <GridLength x:Key="StBrandIconColumn">32</GridLength>
 <ResourceDictionary.ThemeDictionaries>
-    <ResourceDictionary x:Key="Light"><SolidColorBrush x:Key="StIconText" Color="#FFFFFF"/>
+    <ResourceDictionary x:Key="Light"><Thickness x:Key="StBrandMargin">8,8,8,12</Thickness><x:Boolean x:Key="StWindowCaptionVisible">False</x:Boolean><SolidColorBrush x:Key="StIconText" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="StPage" Color="#F2F3F7"/><SolidColorBrush x:Key="StSidebar" Color="#FAFBFD"/>
       <SolidColorBrush x:Key="StBlue" Color="#007AFF"/><SolidColorBrush x:Key="StPurple" Color="#AF52DE"/><SolidColorBrush x:Key="StPink" Color="#FF2D55"/><SolidColorBrush x:Key="StRed" Color="#FF3B30"/><SolidColorBrush x:Key="StOrange" Color="#FF9500"/><SolidColorBrush x:Key="StYellow" Color="#FFCC00"/><SolidColorBrush x:Key="StGreen" Color="#34C759"/><SolidColorBrush x:Key="StGray" Color="#8E8E93"/><SolidColorBrush x:Key="StCyan" Color="#30B0C7"/>
     </ResourceDictionary>
-    <ResourceDictionary x:Key="Dark"><SolidColorBrush x:Key="StIconText" Color="#FFFFFF"/>
+    <ResourceDictionary x:Key="Dark"><Thickness x:Key="StBrandMargin">8,8,8,12</Thickness><x:Boolean x:Key="StWindowCaptionVisible">False</x:Boolean><SolidColorBrush x:Key="StIconText" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="StPage" Color="#1C1C1E"/><SolidColorBrush x:Key="StSidebar" Color="#29292B"/>
       <SolidColorBrush x:Key="StBlue" Color="#0A84FF"/><SolidColorBrush x:Key="StPurple" Color="#BF5AF2"/><SolidColorBrush x:Key="StPink" Color="#FF375F"/><SolidColorBrush x:Key="StRed" Color="#FF453A"/><SolidColorBrush x:Key="StOrange" Color="#FF9F0A"/><SolidColorBrush x:Key="StYellow" Color="#FFD60A"/><SolidColorBrush x:Key="StGreen" Color="#30D158"/><SolidColorBrush x:Key="StGray" Color="#98989D"/><SolidColorBrush x:Key="StCyan" Color="#64D2FF"/>
     </ResourceDictionary>
     <ResourceDictionary x:Key="{x:Static local:Skin.MacOS9}">
+      <Thickness x:Key="StBrandMargin">8,38,8,12</Thickness><x:Boolean x:Key="StWindowCaptionVisible">True</x:Boolean>
       <SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#CCCCCC"/><SolidColorBrush x:Key="StSidebar" Color="#DDDDDD"/>
       <x:Double x:Key="StBodyFont">12</x:Double><x:Double x:Key="StPageTitleFont">12</x:Double>
       <x:Double x:Key="StGroupTitleFont">12</x:Double><x:Double x:Key="StDescriptionFont">12</x:Double>
       <CornerRadius x:Key="StSidebarRadius">0</CornerRadius>
     </ResourceDictionary>
-    <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#ECE9D8"/><SolidColorBrush x:Key="StSidebar" Color="#F4F3EC"/></ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:Skin.WindowsXP}"><Thickness x:Key="StBrandMargin">8,38,8,12</Thickness><x:Boolean x:Key="StWindowCaptionVisible">True</x:Boolean><SolidColorBrush x:Key="StIconText" Color="#000000"/><SolidColorBrush x:Key="StPage" Color="#ECE9D8"/><SolidColorBrush x:Key="StSidebar" Color="#F4F3EC"/></ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries></ResourceDictionary></Styles.Resources>
   <Style Selector="Window.settings"><Setter Property="Background" Value="{DynamicResource StPage}"/><Setter Property="FontSize" Value="{DynamicResource StBodyFont}"/></Style>
   <Style Selector="TabControl.settingsNavigation">
@@ -104,7 +104,7 @@
     <Setter Property="Template"><ControlTemplate>
       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource StNavigationColumnWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <Border Margin="{DynamicResource StSidebarMargin}" Padding="{DynamicResource StSidebarPadding}" Background="{DynamicResource StSidebar}" CornerRadius="{DynamicResource StSidebarRadius}" BorderBrush="{DynamicResource AcHairline}" BorderThickness="0.5">
-          <StackPanel><Grid ColumnSpacing="{DynamicResource StBrandGap}" Margin="{DynamicResource StBrandMargin}"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource StBrandIconColumn}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="{DynamicResource StBrandIconSize}" Height="{DynamicResource StBrandIconSize}"/><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="AvaMedia" FontWeight="SemiBold"/><TextBlock Text="设置" FontSize="{DynamicResource StDescriptionFont}" Foreground="{DynamicResource UiTextSecondary}"/></StackPanel></Grid>
+          <StackPanel><Grid ColumnSpacing="{DynamicResource StBrandGap}" Margin="{DynamicResource StBrandMargin}"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource StBrandIconColumn}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Image Source="avares://AvaMedia.Desktop/Assets/AppIcon/v2/app.png" Width="{DynamicResource StBrandIconSize}" Height="{DynamicResource StBrandIconSize}"/><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="AvaMedia" FontWeight="SemiBold"/><TextBlock IsVisible="{DynamicResource StWindowCaptionVisible}" Text="设置" FontSize="{DynamicResource StDescriptionFont}" Foreground="{DynamicResource UiTextSecondary}"/></StackPanel></Grid>
             <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
           </StackPanel>
         </Border>

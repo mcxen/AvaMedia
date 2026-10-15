@@ -55,10 +55,9 @@
       <GridSplitter x:Name="SidebarSplitter" Classes="workspace-splitter" Grid.Column="1" ResizeDirection="Columns"/>
       <Border x:Name="TaskWorkspace" Classes="task-workspace" Grid.Column="2">
       <Grid x:Name="TaskShell" RowDefinitions="Auto,Auto,*,Auto">
-        <Grid x:Name="ModernTitleBar" Classes="modern-title" IsVisible="False" ColumnDefinitions="Auto,Auto,*,Auto">
-          <Border Grid.ColumnSpan="10" UseLayoutRounding="False" Height="{DynamicResource MbSeparatorHeight}" Background="{DynamicResource MbToolbarLine}" VerticalAlignment="Bottom" IsVisible="{Binding #ApplicationMenu.IsVisible}"/>
-          <TextBlock Grid.Column="2" Classes="modern-title-text" Text="任务" FontSize="{DynamicResource MbFontSize}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-          <Border Grid.Column="3" Classes="capsule" VerticalAlignment="Center"><StackPanel x:Name="ModernToolCapsule" Orientation="Horizontal" Spacing="2"/></Border>
+        <Grid x:Name="ModernTitleBar" Classes="modern-title" IsVisible="False" ColumnDefinitions="Auto,*,Auto">
+          <Border Grid.ColumnSpan="3" UseLayoutRounding="False" Height="{DynamicResource MbSeparatorHeight}" Background="{DynamicResource MbToolbarLine}" VerticalAlignment="Bottom" IsVisible="{Binding #ApplicationMenu.IsVisible}"/>
+          <Border Grid.Column="2" Classes="capsule" VerticalAlignment="Center"><StackPanel x:Name="ModernToolCapsule" Orientation="Horizontal" Spacing="2"/></Border>
         </Grid>
         <Grid x:Name="ModernQueueBar" Grid.Row="1" Classes="modern-queuebar" IsVisible="False" ColumnDefinitions="Auto,*,Auto,Auto">
           <TextBlock Classes="modern-section" Text="任务列表" VerticalAlignment="Center"/>
