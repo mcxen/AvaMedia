@@ -84,6 +84,7 @@
 <Style Selector="Slider.ac-focus /template/ Thumb#thumb /template/ Border#knob"><Setter Property="BoxShadow" Value="{DynamicResource AcFocusShadow}"/></Style>
 <Style Selector="Thumb.ac-range-thumb"><Setter Property="ClipToBounds" Value="False"/><Setter Property="UseLayoutRounding" Value="False"/></Style>
 <Style Selector="ac|LoadingSpinner[(ac|ComponentMotion.Reduced)=False]"><Style.Animations><Animation Duration="0:0:0.8" IterationCount="Infinite"><KeyFrame Cue="0%"><Setter Property="Angle" Value="0"/></KeyFrame><KeyFrame Cue="100%"><Setter Property="Angle" Value="360"/></KeyFrame></Animation></Style.Animations></Style>
+<Style Selector="ac|StageGlyph.ac-active[(ac|ComponentMotion.Reduced)=False]"><Style.Animations><Animation Duration="0:0:0.8" IterationCount="Infinite"><KeyFrame Cue="0%"><Setter Property="Angle" Value="0"/></KeyFrame><KeyFrame Cue="100%"><Setter Property="Angle" Value="360"/></KeyFrame></Animation></Style.Animations></Style>
 <Style Selector="ac|StatusGlyph.ac-running[(ac|ComponentMotion.Reduced)=False]"><Style.Animations><Animation Duration="0:0:0.8" IterationCount="Infinite"><KeyFrame Cue="0%"><Setter Property="Angle" Value="0"/></KeyFrame><KeyFrame Cue="100%"><Setter Property="Angle" Value="360"/></KeyFrame></Animation></Style.Animations></Style>
 <Style Selector="ScrollBar.ac-hidden"><Setter Property="Opacity" Value="0"/></Style>
 <Style Selector="ScrollBar[(ac|ScrollVisibility.IsEnabled)=True]"><Setter Property="Transitions"><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2"/></Transitions></Setter></Style>

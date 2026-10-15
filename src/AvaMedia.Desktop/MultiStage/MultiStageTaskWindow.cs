@@ -1,0 +1,292 @@
+using System.Globalization;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
+using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Media;
+using Avalonia.Threading;
+using AvaMedia.Controls;
+using AvaMedia.Core;
+using AvaMedia.Desktop.Controls;
+
+namespace AvaMedia.Desktop.MultiStage;
+
+/// <summary>Tool content hosted by <see cref="MultiStageTaskWindow"/>: the result slot, output line and result actions.</summary>
+internal interface IMultiStageToolContent : IDisposable
+{
+    Control Result { get; }
+    Control Output { get; }
+    /// <summary>Result actions placed before 关闭 (secondary) and after it (the tool's primary result action).</summary>
+    IReadOnlyList<Button> LeadingActions { get; }
+    IReadOnlyList<Button> TrailingActions { get; }
+    string SourceTitle { get; }
+    string SourceTooltip { get; }
+    Task InitializeAsync();
+    /// <summary>Refresh the slot; returns header detail, section note and runtime/plan summaries for the shell.</summary>
+    MultiStageContentState Update(MultiStageTaskSnapshot snapshot);
+}
+
+internal sealed record MultiStageContentState(string SourceDetail, string ResultNote, string PlanSummary,
+    string ErrorTitle, string ErrorRecovery, bool HasPrimaryResult);
+
+/// <summary>Independent multi-stage task window (UISPEC 10.16, variant B). Closing never stops the task.</summary>
+internal sealed class MultiStageTaskWindow : Window
+{
+    private readonly IMultiStageTask _task;
+    private readonly IMultiStageToolContent _content;
+    private readonly MultiStageTaskShell _shell = new();
+    private readonly MultiStageLogView _log = new();
+    private readonly TextBlock _runtimeValue = new(), _runtimeNote = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly Button _pause, _resume, _stop, _rerunAll, _retry, _rerun, _viewLog, _cancel, _close, _start;
+    private readonly ComboBox _mode = new() { Classes = { "ac" }, VerticalAlignment = VerticalAlignment.Center };
+    private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
+    private MultiStageTaskSnapshot? _snapshot;
+    private MultiStageContentState? _contentState;
+    private MultiStageTaskState? _shownState;
+    private int _refreshPosted, _logRevision;
+    private bool _closed, _busy, _userChoseSection;
+    private string _actionError = "";
+    private DateTime _logReadUtc;
+
+    public MultiStageTaskWindow(IMultiStageTask task, IMultiStageToolContent content, string toolLabel)
+    {
+        _task = task; _content = content;
+        Classes.Add("multistage-task-window");
+        Styles.Add(new StyleInclude(new Uri("avares://AvaMedia.Desktop/")) { Source = new("avares://AvaMedia.Desktop/Styles/MultiStageStyles.axaml") });
+        Title = Localization.Format($"任务 · {Localization.Key(toolLabel)}");
+        Width = 1040; Height = 652; MinWidth = 900; MinHeight = 600;
+        Bind(BackgroundProperty, new DynamicResourceExtension("UiCanvas"));
+
+        _pause = Lifecycle("暂停", "pause", async () => await task.PauseAsync());
+        _resume = Lifecycle("继续", "play", async () => await task.ResumeAsync());
+        _stop = Lifecycle("停止", "square", async () => await task.StopAsync()); _stop.Classes.Add("danger");
+        _rerunAll = Lifecycle("重新执行全部", "rotate-ccw", async () => await task.RerunAsync());
+        _retry = Lifecycle("从阶段重试", "rotate-ccw", async () => { if (_snapshot?.Commands.RetryStageId is { Length: > 0 } id) await task.RetryFromStageAsync(id); });
+        _retry.Classes.Add("primary");
+        _rerun = Lifecycle("重新执行", "rotate-ccw", async () => await task.RerunAsync());
+        foreach (var button in new[] { _pause, _resume, _stop, _rerunAll, _retry, _rerun }) _shell.HeaderActions.Children.Add(button);
+
+        _viewLog = Ui.Button("查看日志", () => { _userChoseSection = true; _shell.ShowLog = true; _ = ReadLogAsync(); });
+        _cancel = Ui.Button("取消", Close);
+        _close = Ui.Button("关闭", Close);
+        _start = Ui.Button("开始任务", () => _ = RunAsync(async () => { if (_mode.SelectedIndex == 1) Close(); else await task.StartAsync(); }));
+        _start.Classes.Add("primary");
+        _mode.ItemsSource = new[] { Localization.Text("立即开始"), Localization.Text("仅加入队列") }; _mode.SelectedIndex = 0;
+        _mode.Bind(MinWidthProperty, new DynamicResourceExtension("AcTaskModeWidth"));
+        Avalonia.Automation.AutomationProperties.SetName(_mode, Localization.Text("任务执行方式"));
+        _mode.SelectionChanged += (_, _) => _start.Content = Localization.Text(_mode.SelectedIndex == 1 ? "加入队列" : "开始任务");
+        StableLayout.Reserve(_start, ["开始任务", "加入队列"]);
+        foreach (var button in content.LeadingActions) _shell.FooterActions.Children.Add(button);
+        foreach (var control in new Control[] { _viewLog, _cancel, _mode, _close }) _shell.FooterActions.Children.Add(control);
+        foreach (var button in content.TrailingActions) _shell.FooterActions.Children.Add(button);
+        _shell.FooterActions.Children.Add(_start);
+        // Footer actions are text-only per the shell design; opt out of the global text-to-icon template.
+        foreach (var button in _shell.FooterActions.Children.OfType<Button>()) button.Classes.Add("text-action");
+
+        _shell.SourceTitle = content.SourceTitle;
+        Localization.SetIsUserText(_shell.SourceTitleBlock, true); ToolTip.SetTip(_shell.SourceTitleBlock, content.SourceTooltip);
+        _shell.Stages.Title = Localization.Text("处理阶段");
+        _shell.SetSectionLabels(Localization.Text("结果"), Localization.Text("处理日志"));
+        _shell.ResultContent = content.Result; _shell.LogContent = _log; _shell.OutputContent = content.Output;
+        _shell.Stages.Footer = BuildRuntime();
+        _shell.SectionChanged += (_, _) => { _userChoseSection = true; if (_shell.ShowLog) _ = ReadLogAsync(); RefreshNote(); };
+        Content = WindowChrome.WrapDialog(this, _shell);
+
+        task.Changed += TaskChanged;
+        _clock.Tick += (_, _) => { if (!_closed) { RefreshClock(); if (_shell.ShowLog && _snapshot?.State is MultiStageTaskState.Running && DateTime.UtcNow - _logReadUtc > TimeSpan.FromSeconds(2)) _ = ReadLogAsync(); } };
+        Opened += async (_, _) => { _clock.Start(); try { await content.InitializeAsync(); } catch (Exception error) { AppDiagnostics.Record("Multi-stage task content", error); } };
+        Closed += (_, _) =>
+        {
+            _closed = true; _clock.Stop(); task.Changed -= TaskChanged;
+            content.Dispose(); task.Dispose();
+        };
+        Localization.Changed += LanguageChanged;
+        Closed += (_, _) => Localization.Changed -= LanguageChanged;
+        Refresh();
+    }
+
+    private Control BuildRuntime()
+    {
+        var panel = new StackPanel { Spacing = 2 };
+        var title = new TextBlock { Text = Localization.Text("运行环境"), Classes = { "ms-small" } };
+        _runtimeValue.Classes.Add("ms-body"); _runtimeValue.FontSize = 12; _runtimeValue.FontWeight = FontWeight.Medium;
+        _runtimeNote.Classes.Add("ms-small");
+        panel.Children.Add(title); panel.Children.Add(_runtimeValue); panel.Children.Add(_runtimeNote);
+        return panel;
+    }
+
+    private Button Lifecycle(string text, string icon, Func<Task> action)
+    {
+        var button = new Button { Classes = { "ac" } };
+        var glyph = new LucideIcon { Kind = icon, Width = 13, Height = 13, VerticalAlignment = VerticalAlignment.Center };
+        glyph.Bind(LucideIcon.ForegroundProperty, button.GetObservable(ForegroundProperty));
+        var label = new TextBlock { Text = Localization.Text(text), VerticalAlignment = VerticalAlignment.Center };
+        button.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { glyph, label } };
+        button.Tag = label;
+        button.Click += (_, _) => _ = RunAsync(action);
+        return button;
+    }
+    private static void SetLabel(Button button, string text) { if (button.Tag is TextBlock label) label.Text = text; }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        if (_busy || _closed) return;
+        _busy = true; _actionError = ""; RefreshActions();
+        try { await action(); }
+        catch (Exception error) { _actionError = error.Message; }
+        finally { _busy = false; if (!_closed) Refresh(); }
+    }
+
+    private void TaskChanged(object? sender, EventArgs args)
+    {
+        if (_closed || Interlocked.Exchange(ref _refreshPosted, 1) != 0) return;
+        Dispatcher.UIThread.Post(() => { Interlocked.Exchange(ref _refreshPosted, 0); if (!_closed) Refresh(); }, DispatcherPriority.Background);
+    }
+    private void LanguageChanged(object? sender, EventArgs args) { _snapshot = null; Refresh(); }
+
+    private void Refresh()
+    {
+        var snapshot = _task.Snapshot;
+        var stateChanged = _shownState != snapshot.State;
+        _snapshot = snapshot;
+        var content = _contentState = _content.Update(snapshot);
+        _shell.SourceDetail = content.SourceDetail;
+        var (pill, pillText) = snapshot.State switch
+        {
+            MultiStageTaskState.Configuring => ("waiting", "待开始"),
+            MultiStageTaskState.Running => ("running", "进行中"),
+            MultiStageTaskState.Paused => ("paused", "已暂停"),
+            MultiStageTaskState.Stopping => ("running", "正在停止"),
+            MultiStageTaskState.Failed => ("failed", "失败"),
+            MultiStageTaskState.Completed => ("completed", "已完成"),
+            _ => ("waiting", "已取消")
+        };
+        _shell.SetStatus(pill, Localization.Text(pillText));
+        _shell.ProgressText = snapshot.State is MultiStageTaskState.Configuring or MultiStageTaskState.Completed ? ""
+            : string.Create(CultureInfo.InvariantCulture, $"{Math.Floor(Math.Clamp(snapshot.Progress, 0, 100)):0}%");
+        RefreshStages(snapshot);
+        var runtime = snapshot.Runtime;
+        _runtimeValue.Text = Localization.Join(" · ", new[] { runtime.Model, runtime.Backend }.Where(s => s.Length > 0));
+        _runtimeValue.IsVisible = _runtimeValue.Text.Length > 0;
+        _runtimeNote.Text = runtime.Note.Length > 0 ? Localization.Text(runtime.Note)
+            : snapshot.State == MultiStageTaskState.Configuring && runtime.Backend.Length == 0 ? Localization.Text("开始后显示实际推理后端") : "";
+        _runtimeNote.IsVisible = _runtimeNote.Text.Length > 0;
+        var reason = _actionError.Length > 0 ? _actionError : snapshot.State == MultiStageTaskState.Failed ? snapshot.Error : "";
+        _shell.SetError(reason.Length > 0 && _actionError.Length == 0 ? content.ErrorTitle : "", reason, _actionError.Length == 0 ? content.ErrorRecovery : "");
+        _shell.IsLogEnabled = snapshot.State != MultiStageTaskState.Configuring;
+        if (stateChanged)
+        {
+            _shownState = snapshot.State;
+            if (!_userChoseSection || snapshot.State == MultiStageTaskState.Configuring) _shell.ShowLog = snapshot.State == MultiStageTaskState.Cancelled;
+            _userChoseSection = false;
+            ++_logRevision; if (_shell.ShowLog || _log.Count > 0) _ = ReadLogAsync();
+        }
+        RefreshNote(content);
+        RefreshClock();
+        RefreshActions(content);
+    }
+
+    private void RefreshStages(MultiStageTaskSnapshot snapshot)
+    {
+        var now = DateTime.UtcNow;
+        var items = snapshot.Stages.Select(stage =>
+        {
+            var state = stage.State switch
+            {
+                StageState.Active => "active", StageState.Paused => "paused", StageState.Done => "done", StageState.Failed => "failed",
+                StageState.Skipped => "skipped", StageState.Cancelled => "cancelled", _ => "pending"
+            };
+            var elapsed = stage.Elapsed is { } value ? value + (stage.IsClockRunning ? Max(now - snapshot.SnapshotUtc) : TimeSpan.Zero) : (TimeSpan?)null;
+            var time = elapsed is not { } spent ? "" : stage.State == StageState.Done
+                ? Localization.Format($"{Seconds(spent.TotalSeconds)} 秒")
+                : string.Create(CultureInfo.InvariantCulture, $"{(int)spent.TotalMinutes:00}:{spent.Seconds:00}");
+            var detail = stage.Detail;
+            if (stage.State is StageState.Active or StageState.Paused && detail.Length == 0 && stage.Current is { } current && stage.Total is > 0)
+                detail = Localization.Format($"{current:0} / {stage.Total:0} {stage.Unit}") + (stage.Fraction is { } f ? $" · {f:0%}" : "");
+            return new StageListItem(Localization.Text(stage.Stage.Title), state, Localization.Text(detail), time)
+            {
+                Progress = stage.State is StageState.Active or StageState.Paused ? stage.Fraction : null,
+                IsIndeterminate = stage.State == StageState.Active && stage.Fraction is null
+            };
+        }).ToArray();
+        var finished = snapshot.Stages.Count(stage => stage.State is StageState.Done or StageState.Skipped);
+        _shell.Stages.Update(items, $"{finished} / {snapshot.Stages.Count}");
+    }
+
+    private void RefreshClock()
+    {
+        if (_snapshot is not { } snapshot) return;
+        var elapsed = snapshot.Elapsed + (snapshot.IsClockRunning ? Max(DateTime.UtcNow - snapshot.SnapshotUtc) : TimeSpan.Zero);
+        var clock = AiActivity.FormatElapsed(elapsed.TotalSeconds);
+        var interrupted = snapshot.Stages.FirstOrDefault(stage => stage.Stage.Id == snapshot.InterruptedStageId)?.Stage.Title ?? "";
+        switch (snapshot.State)
+        {
+            case MultiStageTaskState.Configuring:
+                _shell.SetClock(Localization.Text("尚未开始"), "", _contentState?.PlanSummary ?? ""); break;
+            case MultiStageTaskState.Running or MultiStageTaskState.Stopping:
+                _shell.SetClock(Localization.Text("已用时"), clock, snapshot.Remaining is { } left && left > TimeSpan.Zero ? Localization.Format($"剩余约 {Remaining(left)}") : ""); break;
+            case MultiStageTaskState.Paused:
+                _shell.SetClock(Localization.Text("已用时"), clock, Localization.Text("已暂停")); break;
+            case MultiStageTaskState.Failed:
+                _shell.SetClock(Localization.Text("已用时"), clock, interrupted.Length > 0 ? Localization.Format($"中断于 {Localization.Text(interrupted)}") : ""); break;
+            case MultiStageTaskState.Cancelled:
+                _shell.SetClock(Localization.Text("已用时"), clock, interrupted.Length > 0 ? Localization.Format($"取消于 {Localization.Text(interrupted)}") : ""); break;
+            default:
+                _shell.SetClock(Localization.Text("用时"), clock, snapshot.CompletedUtc is { } done ? Finished(done.ToLocalTime()) : ""); break;
+        }
+        if (snapshot.State is MultiStageTaskState.Running) RefreshStages(snapshot);
+    }
+
+    private void RefreshNote(MultiStageContentState? content = null)
+    {
+        content ??= _contentState;
+        if (content is null) return;
+        _shell.SectionNote = _shell.ShowLog ? Localization.Format($"{_log.Count} 条记录") : content.ResultNote;
+    }
+
+    private void RefreshActions(MultiStageContentState? content = null)
+    {
+        if (_snapshot is not { } snapshot) return;
+        var commands = snapshot.Commands; var state = snapshot.State;
+        _pause.IsVisible = state == MultiStageTaskState.Running && commands.CanPause;
+        _resume.IsVisible = state == MultiStageTaskState.Paused && commands.CanResume;
+        _stop.IsVisible = state is MultiStageTaskState.Running or MultiStageTaskState.Paused or MultiStageTaskState.Stopping && (commands.CanStop || state == MultiStageTaskState.Stopping);
+        _stop.IsEnabled = commands.CanStop && !_busy;
+        var retryStage = snapshot.Stages.FirstOrDefault(stage => stage.Stage.Id == commands.RetryStageId)?.Stage.Title ?? "";
+        _retry.IsVisible = state == MultiStageTaskState.Failed && retryStage.Length > 0;
+        SetLabel(_retry, Localization.Format($"从{Localization.Text(retryStage)}重试"));
+        _rerunAll.IsVisible = _retry.IsVisible && commands.CanRerun;
+        _rerun.IsVisible = !_retry.IsVisible && state is MultiStageTaskState.Failed or MultiStageTaskState.Cancelled or MultiStageTaskState.Completed && commands.CanRerun;
+        _rerun.Classes.Set("primary", state is MultiStageTaskState.Failed or MultiStageTaskState.Cancelled);
+        foreach (var button in new[] { _pause, _resume, _stop, _rerunAll, _retry, _rerun }) button.IsEnabled = !_busy && (button != _stop || commands.CanStop);
+        var configuring = state == MultiStageTaskState.Configuring;
+        _cancel.IsVisible = _mode.IsVisible = _start.IsVisible = configuring;
+        _start.IsEnabled = _mode.IsEnabled = !_busy && commands.CanStart;
+        _close.IsVisible = !configuring;
+        _viewLog.IsVisible = state == MultiStageTaskState.Failed && !_shell.ShowLog;
+    }
+
+    private async Task ReadLogAsync()
+    {
+        var revision = ++_logRevision; _logReadUtc = DateTime.UtcNow;
+        try
+        {
+            var entries = await _task.ReadLogAsync();
+            if (_closed || revision != _logRevision) return;
+            _log.Update(entries); RefreshNote(); RefreshActions();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+        { if (!_closed) { _actionError = error.Message; Refresh(); } }
+    }
+
+    private static TimeSpan Max(TimeSpan value) => value < TimeSpan.Zero ? TimeSpan.Zero : value;
+    internal static string Seconds(double seconds) => seconds < 10 ? seconds.ToString("0.0", CultureInfo.InvariantCulture) : seconds.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string Remaining(TimeSpan left) => left.TotalSeconds < 60 ? Localization.Format($"{Math.Ceiling(left.TotalSeconds):0} 秒")
+        : left.TotalMinutes < 60 ? Localization.Format($"{Math.Ceiling(left.TotalMinutes):0} 分钟") : Localization.Format($"{left.TotalHours:0.#} 小时");
+    private static string Finished(DateTime local)
+    {
+        var day = local.Date == DateTime.Today ? Localization.Text("今天") : local.Date == DateTime.Today.AddDays(-1) ? Localization.Text("昨天") : local.ToString("M/d", CultureInfo.InvariantCulture);
+        return Localization.Format($"{day} {local:HH:mm} 完成");
+    }
+}

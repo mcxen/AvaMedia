@@ -117,6 +117,27 @@
   <Thickness x:Key="AcMultilinePadding">8,6</Thickness>
   <x:Double x:Key="AcEmptyIconSize">40</x:Double>
   <x:Double x:Key="AcNoticeIconSize">16</x:Double>
+  <!-- Multi-stage task shell (UISPEC 10.16) -->
+  <Thickness x:Key="AcMsPadding">20,0</Thickness>
+  <Thickness x:Key="AcMsBodyMargin">20,2,20,0</Thickness>
+  <x:Double x:Key="AcMsGap">12</x:Double>
+  <x:Double x:Key="AcMsHeaderHeight">60</x:Double>
+  <x:Double x:Key="AcMsFooterHeight">56</x:Double>
+  <x:Double x:Key="AcMsStageListWidth">236</x:Double>
+  <x:Double x:Key="AcMsGlyphSize">18</x:Double>
+  <x:Double x:Key="AcMsStageLineWidth">1.5</x:Double>
+  <x:Double x:Key="AcMsTitleFont">15</x:Double>
+  <x:Double x:Key="AcMsPercentFont">22</x:Double>
+  <x:Double x:Key="AcMsPercentWidth">52</x:Double>
+  <x:Double x:Key="AcMsStatFont">15</x:Double>
+  <x:Double x:Key="AcMsPreviewWidth">360</x:Double>
+  <CornerRadius x:Key="AcMsCardRadius">12</CornerRadius>
+  <CornerRadius x:Key="AcMsStageRowRadius">8</CornerRadius>
+  <CornerRadius x:Key="AcMsBannerRadius">10</CornerRadius>
+  <Thickness x:Key="AcMsStageRowPadding">8,8,8,9</Thickness>
+  <Thickness x:Key="AcMsStageListPadding">6,8</Thickness>
+  <Thickness x:Key="AcMsBannerPadding">12,10</Thickness>
+  <Thickness x:Key="AcMsSectionPadding">14,12</Thickness>
   <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
       <Color x:Key="AcMaterialTintColor">#F6F6F8</Color>
@@ -176,6 +197,8 @@
       <SolidColorBrush x:Key="AcBanner" Color="#FFF8E6"/>
       <SolidColorBrush x:Key="AcBannerText" Color="#8A5A00"/>
       <SolidColorBrush x:Key="AcStageLineBrush" Color="#E5E5EA"/>
+      <SolidColorBrush x:Key="AcUnscannedFill" Color="#F4F4F6"/>
+      <SolidColorBrush x:Key="AcMediaTagInk" Color="#1D1D1F"/>
       <SolidColorBrush x:Key="AcScrollHover" Color="#80000000"/>
       <SolidColorBrush x:Key="AcScrollTrack" Color="#08000000"/>
       <BoxShadows x:Key="AcFocusShadow">0 0 0 3 #61007AFF</BoxShadows>
@@ -244,6 +267,8 @@
       <SolidColorBrush x:Key="AcBanner" Color="#24FF9F0A"/>
       <SolidColorBrush x:Key="AcBannerText" Color="#FFC861"/>
       <SolidColorBrush x:Key="AcStageLineBrush" Color="#1AFFFFFF"/>
+      <SolidColorBrush x:Key="AcUnscannedFill" Color="#0DFFFFFF"/>
+      <SolidColorBrush x:Key="AcMediaTagInk" Color="#1D1D1F"/>
       <SolidColorBrush x:Key="AcScrollHover" Color="#80FFFFFF"/>
       <SolidColorBrush x:Key="AcScrollTrack" Color="#08000000"/>
       <BoxShadows x:Key="AcFocusShadow">0 0 0 3 #800A84FF</BoxShadows>

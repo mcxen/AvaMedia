@@ -1,0 +1,35 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ms="using:AvaMedia.Desktop.MultiStage">
+  <!-- Multi-stage task window (UISPEC 10.16). Sizes reference AcMs* defaults from AvaMedia.Controls. -->
+  <Styles.Resources>
+    <ControlTheme x:Key="MsListItem" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Background" Value="{DynamicResource UiTransparent}"/>
+      <Setter Property="Template"><ControlTemplate>
+        <Border Name="face" Background="{TemplateBinding Background}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch"/>
+        </Border>
+      </ControlTemplate></Setter>
+      <Style Selector="^:pointerover"><Setter Property="Background" Value="{DynamicResource UiFill}"/></Style>
+      <Style Selector="^:selected"><Setter Property="Background" Value="{DynamicResource AcSelection}"/></Style>
+    </ControlTheme>
+    <ControlTheme x:Key="MsLogItem" TargetType="ListBoxItem" BasedOn="{StaticResource MsListItem}">
+      <Style Selector="^:pointerover"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
+      <Style Selector="^:selected"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/></Style>
+    </ControlTheme>
+  </Styles.Resources>
+  <Style Selector="ListBox.ms-log"><Setter Property="ItemContainerTheme" Value="{StaticResource MsLogItem}"/></Style>
+  <Style Selector="ListBox.ms-segments"><Setter Property="Background" Value="{DynamicResource UiTransparent}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="ItemContainerTheme" Value="{StaticResource MsListItem}"/></Style>
+  <Style Selector="Border.ms-card"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcMsCardRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/></Style>
+  <Style Selector="Border.ms-section"><Setter Property="Padding" Value="{DynamicResource AcMsSectionPadding}"/></Style>
+  <Style Selector="Border.ms-group"><Setter Property="Background" Value="{DynamicResource AcCardFace}"/><Setter Property="CornerRadius" Value="{DynamicResource AcGroupRadius}"/><Setter Property="BoxShadow" Value="{DynamicResource AcCardShadow}"/><Setter Property="ClipToBounds" Value="True"/></Style>
+  <Style Selector="Border.ms-row-line"><Setter Property="BorderBrush" Value="{DynamicResource AcHairline}"/></Style>
+  <Style Selector="TextBlock.ms-heading"><Setter Property="FontSize" Value="{DynamicResource AcCaptionFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+  <Style Selector="TextBlock.ms-caption"><Setter Property="FontSize" Value="{DynamicResource AcCaptionFont}"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+  <Style Selector="TextBlock.ms-small"><Setter Property="FontSize" Value="{DynamicResource AcSubStepFont}"/><Setter Property="Foreground" Value="{DynamicResource UiTextSecondary}"/></Style>
+  <Style Selector="TextBlock.ms-tick"><Setter Property="FontSize" Value="10"/><Setter Property="Foreground" Value="{DynamicResource AcTextTertiary}"/></Style>
+  <Style Selector="TextBlock.ms-stat"><Setter Property="FontSize" Value="{DynamicResource AcMsStatFont}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+  <Style Selector="TextBlock.ms-body"><Setter Property="FontSize" Value="{DynamicResource AcBodyFont}"/><Setter Property="Foreground" Value="{DynamicResource UiText}"/></Style>
+  <Style Selector="ms|MultiStageTaskWindow TextBlock"><Setter Property="FontFeatures" Value="tnum"/></Style>
+</Styles>
