@@ -5,6 +5,7 @@ public sealed partial class VideoSummaryService
     private async Task<VideoSummaryResult> ExecuteLongAsync(Job job, MediaInfo info, Action<double> progress, CancellationToken ct)
     {
         if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有画面和有效时长的视频。");
+        var stages = job.VideoSummaryStages!;
         var options = job.Options.VideoSummary!; var folder = AiPartialResults.SummaryFolder(job);
         Directory.CreateDirectory(folder); job.SummaryReport = null; job.LongSummaryReport = null; job.SummarySegments = [];
         var ocr = ocrEngine ?? new NullOcrEngine();
@@ -24,14 +25,20 @@ public sealed partial class VideoSummaryService
         var signalHash = SummaryCheckpointStore.Hash(new { transcriptHash, options.AnalyzeFrames, options.Focus, visionIdentity, ocr = ocr.GetType().FullName, ocrVersion = 1, options.FrameCount, budget.FrameLimit, agentVersion = VideoSummaryFrameAgent.Version });
         var activity = new AiActivityReporter(a => job.Activity = a, "视频信号", "段", ["提取信号"]);
         // Complete visual extraction before acquiring the summary lease, reusing both existing caches.
-        var signals = await store.GetOrCreateAsync("signals.json", signalHash, Extract, ct);
+        var cachedSignals = await store.ReadAsync<SummarySignals>("signals.json", signalHash, ct);
+        if (cachedSignals is null) stages.DropRetention();
+        stages.SignalHash(signalHash);
+        var signals = cachedSignals ?? await store.GetOrCreateAsync("signals.json", signalHash, Extract, ct);
+        if (options.AnalyzeFrames) stages.Complete(VideoSummaryStageIds.VisualAnalysis, $"{signals.Frames.Count} 条画面证据");
         var subtitleCues = (signals.RawCues ?? signals.Cues).Select(c => new SubtitleCue(TimeSpan.FromSeconds(c.Start), TimeSpan.FromSeconds(c.End), c.Text)
             { Language = c.Language, Track = c.Track, LanguageConfidence = c.LanguageConfidence }).ToArray();
         job.SubtitleResult = new(subtitleCues, file.Length, file.LastWriteTimeUtc);
         if (options.ExtractSubtitles) await File.WriteAllTextAsync(Path.Combine(folder, "subtitles.srt"), SpeechSubtitles.Srt(subtitleCues), ct);
+        stages.Start(stages.IsRetry ? VideoSummaryStageIds.UnderstandSegments : VideoSummaryStageIds.PlanSegments);
         await using var text = online is not null && modelFactory is null
             ? new OnlineSummaryModel(online.SummaryProvider, model: online.SummaryModel, boundedOutput: true)
             : await OpenLongModelAsync(online?.SummaryModel ?? options.LocalSummaryModelId, online, false, activity, ct);
+        stages.Runtime(online?.SummaryModel ?? options.LocalSummaryModelId, text.Backend);
         var identity = online is null ? text.ModelId : SummaryCheckpointStore.Hash(new { online.SummaryProvider.Endpoint, online.SummaryModel });
         var model = new RetryingSummaryModel(new LongSummaryModel(text, identity));
         var gate = new ConcurrencyGate(identity, options.Provider == VideoSummaryProvider.Local, options.LongSummaryConcurrency, options.LongSummaryRequestsPerMinute, options.LongSummaryTokensPerMinute);
@@ -39,11 +46,14 @@ public sealed partial class VideoSummaryService
         if (Directory.Exists(job.Output)) throw new IOException("总结输出目录已存在，请选择新的输出位置。");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(job.Output))!);
         CopyDirectory(folder, job.Output, ct);
+        job.OutputIsPartial = false;
+        stages.Complete(VideoSummaryStageIds.SaveResults, job.Output);
         return new([], report.Summary, online is null ? ModelCatalog.Find(options.LocalSummaryModelId).Name : online.SummaryProvider.Name + " · " + online.SummaryModel)
             { SummaryProviderId = online?.SummaryProvider.Id, SummaryModelId = online?.SummaryModel ?? options.LocalSummaryModelId };
 
         async Task<SummarySignals> Extract(CancellationToken cancellation)
         {
+            stages.Start(VideoSummaryStageIds.Transcript);
             var transcript = await store.GetOrCreateAsync("asr/transcript.json", transcriptHash, async token =>
             {
                 var longOptions = options.Clone(); longOptions.Speech.Language = "auto";
@@ -70,6 +80,9 @@ public sealed partial class VideoSummaryService
                 }
                 return new TranscriptSignals(all.OrderBy(c => c.Start).ThenBy(c => c.Track).ToArray(), mergedVoices.ToArray(), transcriptSource);
             }, cancellation);
+            stages.Update(VideoSummaryStageIds.Transcript, transcript.Cues.Length, null, "条字幕", transcript.Source);
+            stages.Complete(VideoSummaryStageIds.Transcript, $"{transcript.Source} · {transcript.Cues.Length} 条字幕");
+            if (options.AnalyzeFrames) stages.Start(VideoSummaryStageIds.VisualAnalysis);
             var shots = options.AnalyzeFrames
                 ? await store.GetOrCreateAsync("shots.json", sourceHash, async token => new ShotSignals((await ShotDetector.ScanAsync(engine, job.Inputs[0], info.Duration, token)).ToArray()), cancellation)
                 : new ShotSignals(ShotDetector.FromBoundaries(info.Duration, []).ToArray());
@@ -90,7 +103,9 @@ public sealed partial class VideoSummaryService
             {
                 var visionId = online?.VisionModel ?? options.LocalVisionModelId;
                 await using var vision = await OpenLongModelAsync(visionId, online, true, activity, cancellation);
+                stages.Runtime(online?.VisionModel ?? options.LocalVisionModelId, vision.Backend);
                 var framePlan = new SemanticSegmenter().Plan(new(info.Duration, selectedCues, shots.Shots, transcript.Voices, []), budget, visualOnly: visualOnly);
+                int observedRanges = 0;
                 foreach (var range in framePlan.Segments)
                 {
                     var hash = SummaryCheckpointStore.Hash(new { sourceHash, visionIdentity, range.Start, range.End,
@@ -124,6 +139,7 @@ public sealed partial class VideoSummaryService
                             ocr.Available && cited.Length == 1 ? await ocr.ReadAsync(await File.ReadAllBytesAsync(Path.Combine(folder, frame.Path), cancellation), cancellation) : "")
                             { Path = frame.Path, FrameIds = observation.FrameIds, End = cited[^1].Seconds, Kind = observation.Sequence ? "sequence" : cited.Length > 1 ? "comparison" : "frame" });
                     }
+                    stages.Update(VideoSummaryStageIds.VisualAnalysis, ++observedRanges, framePlan.Segments.Count, "段", $"{frames.Count} 条画面证据");
                     foreach (var note in investigation.Uncertainties) job.AppendLog(note);
                 }
                 if (visualOnly && !ocr.Available) job.AppendLog("无语音模式：只描述可见内容。当前未配置 OCR 引擎，标题文字覆盖可能不完整。");

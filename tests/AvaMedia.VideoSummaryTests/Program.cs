@@ -1,6 +1,8 @@
 using System.Text.Json;
 using AvaMedia.Core;
 
+if (args.FirstOrDefault() == "multi-stage") { await VideoSummaryMultiStageChecks.RunAsync(); return 0; }
+
 if (args.FirstOrDefault() == "long-phase") { await LongSummaryPhaseChecks.RunAsync(int.Parse(args[1])); return 0; }
 
 // Usage: dotnet run -- [mock|live] [workdir]

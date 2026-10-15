@@ -75,12 +75,10 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
         return File.Exists(path) ? JsonSerializer.Deserialize<VideoSummaryReport>(File.ReadAllText(path))?.Result : null;
     }
 
-    public async Task<VideoSummaryResult> ExecuteAsync(Job job, Action<double> progress, CancellationToken ct)
+    private async Task<VideoSummaryResult> ExecuteShortAsync(Job job, MediaInfo probed, Action<double> progress, CancellationToken ct)
     {
-        Validate(job); var options = job.Options.VideoSummary!;
-        var probed = await engine.Probe(job.Inputs[0], ct, audioStreamIndex: options.AudioTrack).ConfigureAwait(false);
-        if (LongVideoSummaryOrchestrator.UsesLongPath(probed.Duration, options))
-            return await ExecuteLongAsync(job, probed, progress, ct).ConfigureAwait(false);
+        var options = job.Options.VideoSummary!;
+        var stages = job.VideoSummaryStages!;
         job.LongSummaryReport = null; job.SummarySegments = [];
         job.SummaryReport = null; job.SubtitleResult = null;
         var partialFolder = AiPartialResults.SummaryFolder(job);
@@ -130,10 +128,13 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             var info = probed;
             if (!info.HasVideo || !double.IsFinite(info.Duration) || info.Duration <= 0) throw new ArgumentException("请选择有画面和有效时长的视频。");
             job.Duration = info.Duration;
+            stages.Start(VideoSummaryStageIds.Transcript);
             activity.Node("字幕与语音");
             (cues, source) = await ReadTranscriptAsync(job, info, staging,
                 value => { PublishPartial(); progress(value); }, activity, ct).ConfigureAwait(false);
             PublishPartial();
+            stages.Update(VideoSummaryStageIds.Transcript, cues.Count, null, "条字幕", source);
+            stages.Complete(VideoSummaryStageIds.Transcript, $"{source} · {cues.Count} 条字幕");
             activity.Result($"{source} · {cues.Count} 条字幕", cues.Count);
             if (options.NeedsAi) activity.Node(options.AnalyzeFrames ? "画面分析" : "内容总结");
             activity.Stage("准备视频总结"); progress(40);
@@ -147,6 +148,7 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             {
                 if (options.AnalyzeFrames)
                 {
+                    stages.Start(VideoSummaryStageIds.VisualAnalysis);
                     var samples = await VideoSummarySampling.SelectAsync(engine, job.Inputs[0], info, options.FrameCount,
                         (fraction, stage) => { job.ProgressDetail = stage; activity.Stage(stage); }, ct).ConfigureAwait(false);
                     sampling = samples.Info;
@@ -157,6 +159,7 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                     var visionModelId = online ? onlineModels!.VisionModel : visionId;
                     usedModels.Add(visionName);
                     activity.Backend(vision.Backend);
+                    stages.Runtime(visionName, vision.Backend);
                     Directory.CreateDirectory(Path.Combine(staging, "frames"));
                     var ordered = samples.Frames.OrderBy(frame => frame.Seconds).ToArray();
                     var seedTimes = VideoSummaryCoverage.Select(ordered.Select(frame => frame.Seconds), options.FrameCount);
@@ -174,6 +177,7 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                     sampling = sampling with { SelectedFrames = investigation.Frames.Length };
                     await SaveInvestigation(investigation).ConfigureAwait(false);
                     await File.WriteAllTextAsync(Path.Combine(staging, "agent-trace.json"), JsonSerializer.Serialize(investigation), ct).ConfigureAwait(false);
+                    stages.Complete(VideoSummaryStageIds.VisualAnalysis, $"{frames.Count} 帧 · {evidence.Count(item => item.Kind != transcriptSelection.EvidenceKind)} 条画面证据");
                     progress(60);
                     async Task SaveInvestigation(VideoSummaryFrameAgentResult value)
                     {
@@ -201,11 +205,14 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                             if (item.Sequence) sequences.Add(new(item.Id, item.FrameIds, cited[0].Seconds, cited[^1].Seconds, item.Text));
                         }
                         await File.WriteAllTextAsync(Path.Combine(partialFolder, "agent-trace.json"), JsonSerializer.Serialize(value), CancellationToken.None).ConfigureAwait(false);
+                        stages.Update(VideoSummaryStageIds.VisualAnalysis, value.Frames.Length, null, "帧", $"已观察 {value.Frames.Length} 帧");
                         PublishPartial();
                     }
 
                 }
             }
+            if (options.NeedsAi) stages.Start(VideoSummaryStageIds.Summarize);
+            else stages.Start(VideoSummaryStageIds.SaveResults);
             if (cues.Count == 0 && frames.Count == 0) throw new InvalidDataException("没有可总结的字幕或语音，请启用画面分析或导入字幕。");
             if (!options.NeedsAi && cues.Count == 0) throw new InvalidDataException("没有可提取的字幕或语音。");
             progress(60);
@@ -220,6 +227,7 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                 summaryModelId = online ? onlineModels!.SummaryModel : summaryId;
                 usedModels.Add(summaryModel);
                 activity.Backend(textModel.Backend);
+                stages.Runtime(summaryModel, textModel.Backend);
                 job.ProgressDetail = "生成总结"; activity.Stage("生成总结", detail: summaryModel);
                 progress(65);
                 try
@@ -265,6 +273,8 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
                     KeywordClaims = outline.KeywordClaims, HighlightClaims = outline.HighlightClaims, Evidence = evidence,
                     Sequences = sequences, Sampling = sampling, AgentTrace = agentTrace.ToArray(), GroundingTrace = groundingTrace.ToArray(),
                     RejectedClaims = rejectedClaims, Result = options.NeedsAi ? result : null };
+            if (options.NeedsAi) stages.Complete(VideoSummaryStageIds.Summarize, $"{sections.Count} 项总结内容" + (summaryRefused ? " · 模型拒绝生成正文" : ""));
+            stages.Start(VideoSummaryStageIds.SaveResults);
             job.SummaryReport = report;
             await AiPartialResults.SaveAvailableAsync(job).ConfigureAwait(false);
             activity.Node("保存结果");
@@ -287,6 +297,7 @@ public sealed partial class VideoSummaryService(IMediaEngine engine, ModelStore?
             ct.ThrowIfCancellationRequested(); Directory.Move(staging, job.Output);
             job.Log = $"Video summary · {cues.Count} subtitles · {frames.Count} frames ({result.RefusedFrames} refused) · {sections.Count} sections" +
                 (summaryRefused ? " · summary refused" : "");
+            stages.Complete(VideoSummaryStageIds.SaveResults, job.Output);
             job.ProgressDetail = "视频总结已完成"; activity.Finish("视频总结已完成"); progress(100);
             return result;
             async Task WriteAsync(string name, string value)

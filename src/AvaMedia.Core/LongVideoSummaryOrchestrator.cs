@@ -13,6 +13,7 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
         Func<SummaryCheckpointStore, CancellationToken, Task<SummarySignals>> extract, Action<double> progress,
         CancellationToken ct, Action<SummarySegmentProgress[]>? segmentProgress = null)
     {
+        var stages = job.VideoSummaryStages;
         job.OutputIsPartial = true;
         var options = job.Options.VideoSummary!; var store = new SummaryCheckpointStore(Path.Combine(folder, "work"));
         var activity = new AiActivityReporter(a => job.Activity = a, model.Backend, "段", ["提取信号", "分段", "逐段理解", "章节归纳", "核验", "输出"]);
@@ -23,6 +24,7 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
         void Notify()
         {
             var snapshot = states.Values.OrderBy(s => s.Start).ToArray(); SummaryProgressStore.Set(job.Id.ToString(), snapshot);
+            stages?.Update(VideoSummaryStageIds.UnderstandSegments, outputs.Count, plan?.Segments.Count, "段", $"已理解 {outputs.Count} 段");
             segmentProgress?.Invoke(snapshot); job.SummarySegments = outputs.Values.OrderBy(s => s.Range.Start).ToArray();
         }
         async Task State(SegmentRange range, string state)
@@ -49,6 +51,7 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
         {
             activity.Node("提取信号"); activity.Stage("提取信号"); progress(0);
             var signals = await store.GetOrCreateAsync("signals.json", signalHash, cancellation => extract(store, cancellation), ct);
+            stages?.Start(VideoSummaryStageIds.PlanSegments);
             job.Duration = signals.Duration; progress(25); activity.Node("分段");
             var visualOnly = LongSummaryMediaPolicy.VisualOnly(signals);
             var planInput = SummaryCheckpointStore.Hash(new { signalHash, signals = SummaryCheckpointStore.Hash(signals), budget, options.Focus, visualOnly });
@@ -61,6 +64,10 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
             var evidence = new EvidenceStore(folder);
             var jobs = plan.Segments.Select(r => SemanticSegmenter.BuildJob(r, signals, budget, options.Focus, visualOnly) with { OutputLanguage = options.OutputLanguage }).ToArray();
             foreach (var input in jobs) await evidence.WriteSegmentAsync(input, ct);
+            stages?.Update(VideoSummaryStageIds.PlanSegments, plan.Segments.Count, null, "段", $"{plan.Segments.Count} 段");
+            stages?.Complete(VideoSummaryStageIds.PlanSegments, $"{plan.Segments.Count} 段");
+            stages?.Start(VideoSummaryStageIds.UnderstandSegments);
+            stages?.Update(VideoSummaryStageIds.UnderstandSegments, outputs.Count, plan.Segments.Count, "段", $"已理解 {outputs.Count} 段");
             activity.Node("逐段理解"); progress(30);
             var mapper = new SegmentMapper(model, budget, responseCache ?? new(), gate, modelIdentity);
             RollingContext Context(SegmentOutput? previous) => previous is null ? RollingContext.Empty : new(previous.Result.Summary,
@@ -99,22 +106,38 @@ public sealed class LongVideoSummaryOrchestrator(ISummaryModel model, TokenBudge
                     finally { publishGate.Release(); }
                 }
             }
+            stages?.Complete(VideoSummaryStageIds.UnderstandSegments, $"{outputs.Count} 段 · {outputs.Values.Count(s => s.Result.Status == "degraded")} 段降级");
+            stages?.Start(VideoSummaryStageIds.ReduceChapters);
             activity.Node("章节归纳"); progress(72);
             var cleaned = CrossSegmentDeduper.Clean(outputs.Values.OrderBy(s => s.Range.Start).ToArray());
             var groups = ChapterBoundaryPlanner.Plan(cleaned, signals.Duration); var chapters = new List<ChapterNode>();
             var reducer = new HierarchicalReducer(model, budget, gate, store);
-            foreach (var group in groups) chapters.Add(await reducer.ReduceAsync(group.Select(HierarchicalReducer.FromSegment).ToArray(), $"c{chapters.Count:000}", options.OutputLanguage, ct));
+            foreach (var group in groups)
+            {
+                chapters.Add(await reducer.ReduceAsync(group.Select(HierarchicalReducer.FromSegment).ToArray(), $"c{chapters.Count:000}", options.OutputLanguage, ct));
+                stages?.Update(VideoSummaryStageIds.ReduceChapters, chapters.Count, groups.Count, "章", $"已归纳 {chapters.Count} 章");
+            }
+            stages?.Complete(VideoSummaryStageIds.ReduceChapters, $"{chapters.Count} 章");
+            stages?.Start(VideoSummaryStageIds.VerifyChapters);
             activity.Node("核验"); progress(85); var verifier = new ChapterVerifier(model, budget, gate, store);
-            for (int i = 0; i < chapters.Count; i++) chapters[i] = await verifier.VerifyAsync(chapters[i], evidence.LoadAsync, options.OutputLanguage, ct);
+            for (int i = 0; i < chapters.Count; i++)
+            {
+                chapters[i] = await verifier.VerifyAsync(chapters[i], evidence.LoadAsync, options.OutputLanguage, ct);
+                stages?.Update(VideoSummaryStageIds.VerifyChapters, i + 1, chapters.Count, "章", $"已核验 {i + 1} 章");
+            }
             CoverageValidator.Assert(chapters.Select(c => (c.Start, c.End)), signals.Duration);
+            stages?.Complete(VideoSummaryStageIds.VerifyChapters, $"{chapters.Count} 章");
+            stages?.Start(VideoSummaryStageIds.Summarize);
             // The full summary sees only chapter claims that survived verification.
             var full = await reducer.ReduceAsync(chapters, "full", options.OutputLanguage, ct);
+            stages?.Complete(VideoSummaryStageIds.Summarize, $"{full.KeyPoints.Length} 条要点");
+            stages?.Start(VideoSummaryStageIds.SaveResults);
             activity.Node("输出"); progress(97);
             var report = new LongSummaryReport(signals.Duration, options.OutputLanguage, full.Summary, full.KeyPoints, chapters.ToArray(),
                 new([], cleaned.Where(s => s.Result.Status == "degraded").Select(s => s.Range.Id).ToArray()))
                 { Limitations = visualOnly && !signals.OcrAvailable ? ["无语音模式未配置 OCR 引擎；只描述可见内容，标题文字覆盖可能不完整。"] : [] };
             await SaveReportAsync(folder, report, ct); await File.WriteAllTextAsync(Path.Combine(folder, "summary.md"), Markdown(report, outputs.Values), new UTF8Encoding(false), ct);
-            job.LongSummaryReport = report; job.OutputIsPartial = false; finished = true; progress(100); return report;
+            job.LongSummaryReport = report; if (stages is null) job.OutputIsPartial = false; finished = true; progress(100); return report;
         }
         catch (OperationCanceledException)
         {
