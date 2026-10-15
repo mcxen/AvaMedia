@@ -96,6 +96,11 @@ public sealed class StageGlyph : Control
                 context.DrawLine(pen, P(6.1, 6.1), P(11.9, 11.9));
                 break;
             }
+            case "awaiting":
+            {
+                context.DrawEllipse(null, new Pen(GetValue(AccentProperty), 1.8 * s), center, radius - s, radius - s);
+                break;
+            }
             case "active":
             {
                 var ring = radius - s;

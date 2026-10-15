@@ -968,6 +968,13 @@ var card = new AvaMedia.Controls.Card { Child = content };
 
 ---
 
+### 10.17 多页任务框架（布局依据）
+
+- 依据 `/workspace/AvaMedia-sidebar-review/interactive-stages/v2/demo.html` 与深色五张参考图：一个任务使用一个无 Owner 窗口，头部复用 10.16，下面居中放带状态标记的 `SegmentedControl`，整页内容由页 id 对应的 DataTemplate 呈现。
+- 页签使用已有分段尺寸与圆角；页标记使用 `StageGlyph`，等待用户为主题 accent 空心环，不旋转。Pending 灰色序号且禁用；Running 转圈；Completed 绿色勾；Failed 危险色。
+- 内容边距 `AcMsBodyMargin`、栏间距 `AcMsGap`，底部操作栏高 `AcMsFooterHeight`，左右边距 `AcMsPadding`。操作栏左侧次文字提示，右侧次按钮与唯一主按钮。宽高以 1240×800 为交互流程参考，允许缩放和滚动，不缩放文字或编辑器。
+- 等待交互期间不累计计算用时；关闭窗口不停止队列。已完成页可回看，修改已完成交互页要显式点击“修改”；修改提交使后续页重置。
+
 ## 11. 远程网页与手机
 
 参考 `docs/ui/remote-*.png`。断点 760 px。

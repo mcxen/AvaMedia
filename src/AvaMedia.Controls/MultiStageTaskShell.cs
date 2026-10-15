@@ -32,6 +32,9 @@ public sealed class MultiStageTaskShell : Grid
     private readonly ContentControl _sourceLeading = new() { VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     private bool _syncing;
 
+    public Control Header { get; }
+    public Control ProcessingContent { get; }
+    public Control FooterContent { get; }
     public StageList Stages { get; } = new();
     /// <summary>Source block (thumbnail, title, detail); hosts make it a draggable file chip.</summary>
     public Border SourceArea { get; } = new() { Classes = { "ac-ms-source" }, Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Left };
@@ -45,7 +48,7 @@ public sealed class MultiStageTaskShell : Grid
     {
         Classes.Add("ac-ms-shell");
         RowDefinitions = new("Auto,*,Auto");
-        Children.Add(BuildHeader());
+        Header = BuildHeader(); Children.Add(Header);
         var body = new Grid { ColumnDefinitions = new("Auto,*") };
         BindResource(body, MarginProperty, "AcMsBodyMargin"); BindResource(body, ColumnSpacingProperty, "AcMsGap");
         BindResource(Stages, WidthProperty, "AcMsStageListWidth");
@@ -69,11 +72,11 @@ public sealed class MultiStageTaskShell : Grid
         Grid.SetRow(toolbar, 1); right.Children.Add(toolbar);
         var slot = new Panel(); slot.Children.Add(_result); slot.Children.Add(_log);
         Grid.SetRow(slot, 2); right.Children.Add(slot);
-        Grid.SetRow(body, 1); Children.Add(body);
+        ProcessingContent = body; Grid.SetRow(body, 1); Children.Add(body);
         var footer = new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 8 };
         BindResource(footer, HeightProperty, "AcMsFooterHeight"); BindResource(footer, MarginProperty, "AcMsPadding");
         footer.Children.Add(_output); Grid.SetColumn(FooterActions, 1); footer.Children.Add(FooterActions);
-        Grid.SetRow(footer, 2); Children.Add(footer);
+        FooterContent = footer; Grid.SetRow(footer, 2); Children.Add(footer);
     }
 
     private Control BuildHeader()
