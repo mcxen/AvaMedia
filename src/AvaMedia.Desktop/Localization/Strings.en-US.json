@@ -4150,5 +4150,19 @@
   "拖拽源文件到工具或其他应用 · {0}": "Drag the source file to a tool or another app · {0}",
   "拖拽到工具或其他应用以复制 · {0}": "Drag to a tool or another app to copy · {0}",
   "新建「{0}」任务 · {1} 个文件": "New \"{0}\" task · {1} files",
-  "「{0}」不支持这些文件": "\"{0}\" does not accept these files"
+  "「{0}」不支持这些文件": "\"{0}\" does not accept these files",
+  "调整片段 · 保留有人片段": "Adjust segments · Keep person clips",
+  "源视频在检测后已更改，片段可能与画面不再对应。可以继续调整，导出前请重新检测。": "The source video has changed since detection. Segments may no longer match the picture. You can keep editing; detect again before exporting.",
+  "检测结果 · 未修改": "Detection result · Unmodified",
+  "已修改 {0} 处": "{0} changes",
+  "已存入任务结果": "Saved to task result",
+  "正在保存…": "Saving…",
+  "源视频已更改，请重新检测后导出": "The source video has changed. Detect again before exporting.",
+  "没有保留的片段": "No segments kept",
+  "放弃全部 {0} 处调整，回到检测得到的片段？可以撤销。": "Discard all {0} changes and restore detected segments? This can be undone.",
+  "导出 {0} 段": "Export {0} segments",
+  "阈值 {0}": "Threshold {0}",
+  "当前文件夹": "Current folder",
+  "还原检测结果": "Restore detection result",
+  "重新检测…": "Detect again…"
 }
