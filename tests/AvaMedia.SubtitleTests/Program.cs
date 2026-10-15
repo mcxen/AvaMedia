@@ -11,6 +11,12 @@ using AvaMedia.Desktop;
 #endif
 using AvaMedia.Core;
 
+if (args.Contains("--subtitle-view-only"))
+{
+    await SubtitleTaskViewChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--multi-stage-only"))
 {
     await SubtitleMultiStageChecks.RunAsync();

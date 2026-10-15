@@ -100,6 +100,7 @@ internal static class SubtitleMultiStageChecks
         job.SubtitleStages = null;
         File.AppendAllText(AiTaskResults.PathFor(job, "subtitle-log", "jsonl"), "{partial");
         using var restored = new SubtitleTaskSession(job, new FakeHost());
+        await SubtitleTaskViewChecks.Until(restored, () => restored.Snapshot.InterruptedStageId == SubtitleStageIds.Recognize);
         Check(restored.Snapshot.InterruptedStageId == SubtitleStageIds.Recognize && !restored.Snapshot.IsClockRunning, "reopened session restores cancellation without a live clock");
         Check(restored.Snapshot.Elapsed == TimeSpan.FromSeconds(10), "durable elapsed time matches stage totals");
         Check((await restored.ReadLogAsync()).SequenceEqual(liveLogs), "structured log restore tolerates an interrupted last line");
@@ -117,6 +118,7 @@ internal static class SubtitleMultiStageChecks
         job.SubtitleStages = null; job.State = JobState.Failed; job.Error = "执行进程中断";
         using (var session = new SubtitleTaskSession(job, new FakeHost()))
         {
+            await SubtitleTaskViewChecks.Until(session, () => session.Snapshot.InterruptedStageId == SubtitleStageIds.Recognize);
             Check(session.Snapshot.Stages[2].State == StageState.Failed && session.Snapshot.InterruptedStageId == SubtitleStageIds.Recognize, "persisted active stage resolves to interruption point");
             Check(session.Snapshot.Stages[2].Detail == job.Error && session.Snapshot.Stages[2].Current == 4, "interruption uses queue error and retained count");
             Check(!session.Snapshot.IsClockRunning && session.Snapshot.CompletedUtc is null, "process interruption invents no completion timestamp");

@@ -8,7 +8,19 @@ using System.Text.Json.Serialization;
 namespace AvaMedia.Core;
 
 internal sealed record SubtitleStageSummary(TaskStageStatus[] Stages, DateTime? StartedUtc, DateTime? CompletedUtc,
-    TaskRuntimeInfo Runtime, string SourcePath);
+    TaskRuntimeInfo Runtime, string SourcePath)
+{
+    public SubtitleTaskObservation? Observation { get; init; }
+}
+
+internal sealed record SubtitleTaskObservation
+{
+    public MediaInfo? Info { get; init; }
+    public double RangeStart { get; init; }
+    public double? RangeEnd { get; init; }
+    public double RecognizedSeconds { get; init; }
+    public SubtitleTaskResult? Result { get; init; }
+}
 
 public sealed partial class Job
 {
@@ -69,6 +81,36 @@ internal sealed class SubtitleTaskState : IDisposable
     }
 
     internal IReadOnlyList<TaskLogEntry> ReadLog() { lock (_gate) return Array.AsReadOnly(_logs.ToArray()); }
+
+    internal void Source(MediaInfo info, double start, double end)
+    {
+        lock (_gate)
+        {
+            _summary = _summary with { Observation = new() { Info = info, RangeStart = start, RangeEnd = end } };
+            SaveLocked();
+        }
+    }
+
+    internal void Recognized(double sourceSeconds)
+    {
+        lock (_gate)
+        {
+            if (_summary.Observation is not { } observation || !double.IsFinite(sourceSeconds)) return;
+            _summary = _summary with { Observation = observation with
+            { RecognizedSeconds = Math.Max(observation.RecognizedSeconds, sourceSeconds) } };
+        }
+    }
+
+    internal void Transcript(SubtitleTaskResult result)
+    {
+        lock (_gate)
+        {
+            if (_summary.Observation is not { } observation) return;
+            _summary = _summary with { Observation = observation with { Result = result } };
+            // Partial cues are checkpointed with stage updates; complete results must survive a write failure.
+            if (!result.IsPartial || _time.GetElapsedTime(_lastSave) >= TimeSpan.FromSeconds(2)) SaveLocked();
+        }
+    }
 
     internal void Start(string id)
     {

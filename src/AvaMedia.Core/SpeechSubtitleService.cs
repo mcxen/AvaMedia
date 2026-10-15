@@ -87,7 +87,11 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         var reportProgress = progress;
         progress = value => updates.Set("percent", () => reportProgress(value));
         void Detail(string value) => updates.Set("detail", () => job.ProgressDetail = value);
-        void Transcript(SubtitleTaskResult value) => updates.Set("cues", () => job.SubtitleResult = value);
+        void Transcript(SubtitleTaskResult value) => updates.Set("cues", () =>
+        {
+            stages.Transcript(value);
+            job.SubtitleResult = value;
+        });
         var options = job.Options;
         var speech = options.Transcription ?? new();
         job.SubtitleResult = null;
@@ -108,6 +112,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
         }
         var duration = Math.Min(options.End > 0 ? options.End : info.Duration, info.Duration) - options.Start;
         if (duration <= 0) throw new ArgumentException("识别区间超出源文件时长。");
+        stages.Source(info, options.Start, options.Start + duration);
         job.Duration = duration / options.Speed;
         stages.Complete(SubtitleStageIds.ReadAudio, $"音轨 {options.AudioStreamIndex + 1} · {MediaEngine.Number(duration)} 秒");
         var tracker = speech.ReviewedCues is null ? new AiProgressSpeechTracker(job.Id.ToString(), options.Start, duration) : null;
@@ -174,6 +179,7 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                         {
                             recognized = Math.Max(recognized, Math.Min(duration, seconds));
                             tracker!.Advance(options.Start + recognized);
+                            stages.Recognized(options.Start + recognized);
                             stages.Update($"{MediaEngine.Number(recognized)} / {MediaEngine.Number(duration)} 秒", recognized, duration, "秒");
                             activity.Advance(recognized, duration, "秒");
                             progress(15 + 60 * recognized / duration);
@@ -336,7 +342,6 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                     throw new IOException("校对后源文件已改变，请重新识别字幕。");
                 if (cues.Any(cue => cue.End.TotalSeconds > job.Duration + .1)) throw new ArgumentException("字幕时间超出视频范围。");
             }
-            Transcript(new(cues.ToArray(), sourceLength, sourceWriteUtc));
             if (cues.Count == 0 && !allowEmpty) throw new InvalidDataException("未识别到语音，请检查音轨或更换识别语言。");
             sourceFile.Refresh();
             if (!sourceFile.Exists || sourceFile.Length != sourceLength || sourceFile.LastWriteTimeUtc != sourceWriteUtc)
@@ -345,9 +350,9 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
             stages.Complete(SubtitleStageIds.ValidateTimeline, $"{cues.Count} 条字幕 · 源文件未改变");
             stages.Start(SubtitleStageIds.WriteSubtitles);
             var transcript = new SubtitleTaskResult(cues.ToArray(), sourceLength, sourceWriteUtc);
+            Transcript(transcript);
             if (saveTaskResult)
                 await AiTaskResults.SaveAsync(AiTaskResults.PathFor(job, "subtitles"), transcript, ct).ConfigureAwait(false);
-            Transcript(transcript);
             activity.Node("保存结果");
             if (options.Format is "srt" or "ass")
             {
