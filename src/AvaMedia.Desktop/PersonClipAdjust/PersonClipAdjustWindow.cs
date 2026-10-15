@@ -35,7 +35,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
     private readonly DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromSeconds(5) };
     private int? _selected;
-    private bool _closed, _saved = true, _saving;
+    private bool _closed, _saved = true, _saving, _submitting;
     private int _editRevision;
     private double _position = 0;
     private MediaInfo? _info;
@@ -302,6 +302,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
     /// <summary>Run one session command; invalid edits surface as a short header notice instead of a dialog.</summary>
     private void Do(Action command)
     {
+        if (_submitting || _closed) return;
         try { command(); }
         catch (ArgumentException error) { Notify(error.Message); }
         catch (InvalidOperationException error) { Notify(error.Message); }
@@ -367,11 +368,12 @@ internal sealed partial class PersonClipAdjustWindow : Window
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_closingAfterSave) return;
+        if (_submitting) { e.Cancel = true; return; }
         EndCrop();
         if (_saved && !_saving) return;
         e.Cancel = true; _saveTimer.Stop();
         await SaveAsync();
-        if (_saved) { _closingAfterSave = true; Close(); }
+        if (_saved && !_submitting) { _closingAfterSave = true; Close(); }
     }
 
     private async Task RestoreAllAsync()
@@ -383,24 +385,30 @@ internal sealed partial class PersonClipAdjustWindow : Window
 
     private async Task ExportAsync()
     {
+        if (_submitting || _closed) return;
         EndCrop();
-        await StopPlaybackAsync();
-        ClipEditResult edit;
-        try { edit = _session.ToClipEditResult(); }
-        catch (Exception error) when (error is ArgumentException or InvalidOperationException) { Notify(error.Message); return; }
-        var preset = _format.SelectedItem as string ?? PersonClipTaskOptions.DefaultExportPreset;
-        try { QuickClipWorkflow.ValidateJoinedExports([edit], preset); }
-        catch (ArgumentException error) { Notify(error.Message); return; }
-        var folder = OutputFolder;
-        if (string.IsNullOrWhiteSpace(folder)) { Notify(Localization.Text("请选择输出目录。")); return; }
-        _saveTimer.Stop(); await _saveTask; await SaveAsync();
-        if (!_saved) return;
+        _submitting = true;
+        if (Content is Control content) content.IsEnabled = false;
         try
         {
+            await StopPlaybackAsync();
+            _saveTimer.Stop(); await _saveTask; await SaveAsync();
+            if (!_saved) return;
+            var edit = _session.ToClipEditResult();
+            var preset = _format.SelectedItem as string ?? PersonClipTaskOptions.DefaultExportPreset;
+            QuickClipWorkflow.ValidateJoinedExports([edit], preset);
+            var folder = OutputFolder;
+            if (string.IsNullOrWhiteSpace(folder)) { Notify(Localization.Text("请选择输出目录。")); return; }
             await _host.Export(new PersonClipRequest([edit], Path.GetFullPath(folder), _toSource, preset, _mode.SelectedIndex == 0));
+            _closingAfterSave = true;
             Close();
         }
         catch (Exception error) { Notify(error.Message); }
+        finally
+        {
+            _submitting = false;
+            if (Content is Control restoredContent) restoredContent.IsEnabled = true;
+        }
     }
 
     private async Task RedetectAsync()
@@ -416,6 +424,7 @@ internal sealed partial class PersonClipAdjustWindow : Window
     // ------------------------------------------------------------------ keyboard
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_submitting) { e.Handled = true; return; }
         if (e.Source is TextBox) return;
         var command = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
         switch (e.Key)
