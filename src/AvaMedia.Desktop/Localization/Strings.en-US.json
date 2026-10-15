@@ -4179,5 +4179,22 @@
   "循环播放片段": "Loop current segment",
   "微调精度": "Adjustment precision",
   "正在读取视频…": "Loading video…",
-  "在预览上拖动裁剪框，完成后再次点击「裁剪」": "Drag the crop frame in the preview, then click Crop again to finish."
+  "在预览上拖动裁剪框，完成后再次点击「裁剪」": "Drag the crop frame in the preview, then click Crop again to finish.",
+  "在播放头拆分": "Split at playhead",
+  "与下一段合并": "Merge with next",
+  "吸附检测边界": "Snap to detection boundaries",
+  "全片": "Full video",
+  "移除排除区间": "Remove exclusion",
+  "已手动移除": "Manually removed",
+  "未检测（黑灯画面 / 排除区间）": "Unscanned (dark / excluded)",
+  "显示 {0} – {1} · 共 {2}": "Showing {0} – {1} · Total {2}",
+  "片段时间线": "Segment timeline",
+  "人物置信度": "Person confidence",
+  "此结果未保存逐帧分数 · 重新检测后显示曲线": "No per-frame scores saved · Detect again to show the curve",
+  "吸附": "Snapped",
+  "首个有人帧": "First person frame",
+  "末个有人帧": "Last person frame",
+  "检测片段边界": "Detection boundary",
+  "相邻片段": "Adjacent segment",
+  "黑灯画面": "Dark frames"
 }
