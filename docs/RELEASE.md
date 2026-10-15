@@ -1,5 +1,9 @@
 # 自动发布
 
+普通 CI 在编译前运行 `scripts/Validate-ReleaseMetadata.py`，核对 `Directory.Build.props` 与对应版本说明的标题和正文；Release 工作流也在浏览器构建前检查版本说明存在且非空，避免安装包全部构建结束后才发现缺文件。新版本 tag 必须包含 `docs/releases/<版本>.md`。
+
+2026-10-15 的 v1.1.97 构建已完成，失败点是发布脚本读取不存在的 `docs/releases/1.1.97.md`，v1.1.96 也有相同错误。说明文件随后补入 main；原 tag 未移动，直接重跑旧记录仍会读取原 tag 的内容。恢复这些版本应复用已构建产物并使用补录的说明，或在明确选择当前发布工具时保留原 tag 的应用源码与版本；不要仅为发布说明缺失重建和重打版本。
+
 版本说明保存在 `docs/releases/<版本>.md`，`Publish-Release.ps1` 按待发布版本读取对应文件；历史变更汇总保存在 [版本目录](releases/README.md)。
 
 日常 CI 仅在客户端源码、界面模板、项目或依赖配置改变时编译 `AvaMedia.Desktop` 及其 Core 依赖，不编译测试项目、不下载 FFmpeg、不运行媒体、截图或消融回归。只改文档、图片等资源时跳过。需要全量回归时，在 CI 的 **Run workflow** 中勾选 `full_verification`；该模式独立运行原有 `scripts/Verify.ps1`，不会先重复编译客户端。

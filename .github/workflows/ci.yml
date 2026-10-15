@@ -12,6 +12,8 @@ on:
       - 'global.json'
       - 'NuGet.config'
       - '.github/workflows/ci.yml'
+      - 'scripts/Validate-ReleaseMetadata.py'
+      - 'docs/releases/**'
   pull_request:
     paths:
       - 'src/**/*.cs'
@@ -23,6 +25,8 @@ on:
       - 'global.json'
       - 'NuGet.config'
       - '.github/workflows/ci.yml'
+      - 'scripts/Validate-ReleaseMetadata.py'
+      - 'docs/releases/**'
   workflow_dispatch:
     inputs:
       full_verification:
@@ -46,6 +50,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.x'
+      - name: Validate release metadata
+        run: python scripts/Validate-ReleaseMetadata.py
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
