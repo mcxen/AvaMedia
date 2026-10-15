@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/AvaMedia.Desktop/AvaMedia.Desktop.csproj"/><PackageReference Include="Avalonia.Headless" Version="11.3.22"/></ItemGroup>
+  <ItemGroup>
+    <Compile Include="../AvaMedia.SubtitleTests/SubtitleTaskViewChecks.cs" Link="SubtitleTaskViewChecks.cs" />
+    <Compile Include="../AvaMedia.SubtitleTests/SubtitleMultiStageChecks.cs" Link="SubtitleMultiStageChecks.cs" />
+    <Compile Include="../../tools/AvaMedia.MultiStageCapture/SubtitleOutputCapture.cs" Link="SubtitleOutputCapture.cs" />
+  </ItemGroup>
 </Project>
