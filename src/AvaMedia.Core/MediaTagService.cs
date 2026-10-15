@@ -26,6 +26,10 @@ public sealed record MediaTagResult(string Path, IReadOnlyList<MediaTagScore> Sc
     string Backend, long Length, DateTime LastWriteUtc, string? FallbackReason = null)
 {
     public bool IsPartial { get; init; }
+    /// <summary>Last observed analysis image, encoded as a PNG thumbnail no wider than 640 pixels.</summary>
+    public byte[]? Preview { get; init; }
+    public string PreviewCaption { get; init; } = "";
+    public DateTime? PreviewUtc { get; init; }
     public IReadOnlyList<MediaTagFrame> Frames { get; init; } = [];
     public MediaSceneResult? Scenes { get; init; }
     public string? SceneError { get; init; }
@@ -244,7 +248,11 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     frameSeconds: frameSeconds, videoDurationSeconds: result.DurationSeconds,
                     frameTool: frameSeconds is not null && options.CaptionUseFrameTools
                         ? new MediaCaptionFrameTool(engine, result, videoStreamIndex,
-                            (png, label) => { activity.Node("补充描述画面"); activity.Frame(png, label); }).Tool : null,
+                            (png, label) =>
+                            {
+                                activity.Node("补充描述画面"); activity.Frame(png, label);
+                                result = result with { Preview = MediaClassificationTaskViewProjection.Thumbnail(png), PreviewCaption = label, PreviewUtc = DateTime.UtcNow };
+                            }).Tool : null,
                     observed: observation =>
                     {
                         var existing = observations.FindIndex(value => value.SampleIndex == observation.SampleIndex);
@@ -291,10 +299,12 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     activity.Frame(item.Image, item.File.Name);
                     activity.Result(item.File.Name + " · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
+                    var thumbnail = MediaClassificationTaskViewProjection.Thumbnail(item.Image);
+                    var previewUtc = DateTime.UtcNow;
                     var tagPreview = new MediaTagResult(item.File.FullName,
                         tags.Select((tag, j) => new MediaTagScore(tag, vectors[i][j], vectors[i][j])).ToArray(),
                         1, 1, backend, item.Length, item.Modified, fallback.Length == 0 ? null : fallback)
-                    { IsPartial = true, RealPeopleOnly = options.RealPeopleOnly, Frames = [new(0, []) { Values = vectors[i] }] };
+                    { IsPartial = true, Preview = thumbnail, PreviewCaption = item.File.Name, PreviewUtc = previewUtc, RealPeopleOnly = options.RealPeopleOnly, Frames = [new(0, []) { Values = vectors[i] }] };
                     progress?.Report(new(item.File.FullName, null, null, completed, files.Length) { PreviewResult = tagPreview });
                     var scene = await SceneResultAsync([item.Image], [0], [0], value => progress?.Report(
                         new(item.File.FullName, null, null, completed, files.Length) { PreviewResult = tagPreview with { Scenes = value } })).ConfigureAwait(false);
@@ -310,6 +320,7 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                         1, 1, backend, item.Length, item.Modified, fallback.Length == 0 ? null : fallback)
                     {
                         RealPeopleOnly = options.RealPeopleOnly,
+                        Preview = thumbnail, PreviewCaption = item.File.Name, PreviewUtc = previewUtc,
                         Nsfw = classification,
                         Scenes = scene.Result, SceneError = scene.Error, SceneSkipped = scene.Result is null && sceneSkipped,
                         Frames = [new MediaTagFrame(0, []) { Values = vectors[i] }]
@@ -373,9 +384,11 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                 }
                 var mean = new double[tags.Length]; var maximum = new double[tags.Length];
                 var scored = 0;
+                byte[]? thumbnail = null; string previewCaption = ""; DateTime? previewUtc = null;
                 MediaTagResult Snapshot() => new(path, tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / Math.Max(1, scored), maximum[j])).ToArray(),
                     count, samples.Where((_, index) => frameValues[index] is not null).Distinct().Count(), backend, length, modified, fallback.Length == 0 ? null : fallback)
                 {
+                    Preview = thumbnail, PreviewCaption = previewCaption, PreviewUtc = previewUtc,
                     DurationSeconds = duration,
                     RealPeopleOnly = options.RealPeopleOnly,
                     Frames = sampleSeconds.Select((seconds, index) => (seconds, index)).Where(item => frameValues[item.index] is not null)
@@ -397,7 +410,9 @@ public sealed class MediaTagService(IMediaEngine engine, ModelStore? modelStore 
                     }
                     var latest = unique[Math.Min(offset + vectors.Length, unique.Count) - 1];
                     activity.Backend(backend);
-                    activity.Frame(latest.Image, $"{file.Name} · {MediaTime.Format(latest.Seconds)}");
+                    previewCaption = $"{file.Name} · {MediaTime.Format(latest.Seconds)}";
+                    thumbnail = MediaClassificationTaskViewProjection.Thumbnail(latest.Image); previewUtc = DateTime.UtcNow;
+                    activity.Frame(latest.Image, previewCaption);
                     activity.Result("当前标签 · " + string.Join(" · ", tags.Select((tag, j) => new MediaTagScore(tag, mean[j] * count / scored, maximum[j]))
                         .OrderByDescending(score => score.Score).Take(5).Select(score => $"{WordLibraryCatalog.TagLabel(score.Tag)} {score.Score:0.00}")));
                     activity.Advance(scored, count, "帧", fallback.Length == 0 ? "采样平均分，阶段候选" : "已切换 CPU · 采样平均分，阶段候选");

@@ -1,1 +1,1 @@
-await MediaClassificationTests.RunAsync();
+await MediaClassificationTests.RunAsync(args.Contains("--views-only"));

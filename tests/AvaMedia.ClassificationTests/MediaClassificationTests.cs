@@ -7,15 +7,19 @@ internal static class MediaClassificationTests
     private static readonly List<Job> Jobs = [];
     private static readonly string Root = Path.Combine(Path.GetTempPath(), "classification-stages-" + Guid.NewGuid().ToString("N"));
 
-    internal static async Task RunAsync()
+    internal static async Task RunAsync(bool viewsOnly = false)
     {
         Directory.CreateDirectory(Root);
         try
         {
-            await CommandsAsync();
-            await ObservationsAsync();
-            await RestoreAsync();
-            await ExecutionAsync();
+            await ViewsAsync();
+            if (!viewsOnly)
+            {
+                await CommandsAsync();
+                await ObservationsAsync();
+                await RestoreAsync();
+                await ExecutionAsync();
+            }
             Console.WriteLine($"Passed {_checks} media classification unit checks.");
         }
         finally
@@ -130,6 +134,7 @@ internal static class MediaClassificationTests
         job.MediaClassificationStages = null;
         using (var restored = new MediaClassificationTaskSession(job, new Host()))
         {
+            await WaitUntilAsync(() => restored.Snapshot.InterruptedStageId.Length > 0);
             Check(restored.Snapshot.InterruptedStageId == MediaClassificationStageIds.PrepareModel
                 && !restored.Snapshot.IsClockRunning && restored.Snapshot.Error == job.Error, "failed stage restores from durable summary");
             File.AppendAllText(MediaClassificationTaskState.LogPath(job), "{partial");
@@ -142,7 +147,10 @@ internal static class MediaClassificationTests
         File.WriteAllText(path, JsonSerializer.Serialize(summary));
         job.State = JobState.Cancelled;
         using (var interrupted = new MediaClassificationTaskSession(job, new Host()))
-            Check(interrupted.Snapshot.Stages[1].State == StageState.Cancelled && !interrupted.Snapshot.IsClockRunning, "process interruption restores as cancelled without running clock");
+        {
+            await WaitUntilAsync(() => interrupted.Snapshot.Stages[1].State == StageState.Cancelled);
+            Check(!interrupted.Snapshot.IsClockRunning, "process interruption restores as cancelled without running clock");
+        }
         job.State = JobState.Waiting;
         using var queued = new MediaClassificationTaskSession(job, new Host());
         Check(queued.Snapshot.Stages.All(stage => stage.State == StageState.Pending && stage.Elapsed is null)
@@ -187,6 +195,153 @@ internal static class MediaClassificationTests
         await ThrowsAsync<ArgumentException>(() => new MediaTagJobService(new Engine()).ExecuteAsync(tag, _ => { }, default), "invalid tagging input propagates");
         Check(Stage(tag.MediaClassificationStages!, MediaClassificationStageIds.ScanFiles).State == StageState.Failed
             && Stage(tag.MediaClassificationStages!, MediaClassificationStageIds.PrepareModel).Elapsed is null, "tagging validation failure precedes model preparation");
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        while (!condition()) await Task.Delay(20, timeout.Token);
+    }
+
+    private static MediaTagResult Result(string path, bool partial = false) => new(path,
+        [new("blue_sky", .85, .9), new("cloud", .75, .8)], 1, 1, "CPU", 123, DateTime.UnixEpoch)
+        { IsPartial = partial, Caption = "合成结果说明" };
+
+    private static FolderClassifiedFile Classified(string path, string category = "蓝色", bool partial = false) => new(Result(path, partial),
+        [new("color", "颜色", "blue", category, [new("blue", category, .72, 1), new("other", "其他", .99, 0)], [], null, 1, "实际分类依据")], ["蓝天", "云"]);
+
+    private static MediaClassificationTaskView Project(Job job, FolderClassificationTaskSnapshot? files = null, MediaTagResult? tags = null) =>
+        MediaClassificationTaskViewProjection.Create(job, new()
+        {
+            Stages = job.MediaClassificationStages?.Capture().Stages ?? [],
+            Runtime = job.MediaClassificationStages?.Capture().Runtime ?? new("")
+        }, files, tags, null, "", false);
+
+    private static async Task ViewsAsync()
+    {
+        var empty = NewJob("media-ai"); empty.Inputs = [Path.Combine(Root, "queued.jpg")];
+        empty.Options.MediaTag = new() { WriteTextReport = false };
+        var unknown = Project(empty, tags: Result(empty.Inputs[0]));
+        Check(unknown is { IsTagging: true, TotalItems: 1, DoneItems: 0, FailedItems: 0, HasResult: false, IsPartial: true, Preview: null }
+            && unknown.SourcePath == empty.Inputs[0] && unknown.ModelName == "" && unknown.Items[0] is { State: StageState.Pending, Result: "", Detail: "", Confidence: null }
+            && unknown.Groups.Count == 0 && unknown.Output.IsFixedLocation && !unknown.Output.Exists && unknown.Output.Bytes is null,
+            "queued view hides previous run and leaves unknown observations empty");
+
+        var tag = NewJob("media-ai"); tag.Inputs = [Path.Combine(Root, "tag.jpg")]; tag.State = JobState.Running;
+        tag.Options.MediaTag = new() { WriteTextReport = false };
+        var tagStages = new MediaClassificationTaskState(tag);
+        tagStages.Enter(MediaClassificationStageIds.AnalyzeItems);
+        var partial = Result(tag.Inputs[0], true);
+        var tagView = Project(tag, tags: partial);
+        Check(tagView is { HasResult: true, IsPartial: true, DoneItems: 0 } && tagView.Items[0].State == StageState.Active
+            && tagView.Items[0].Result.Length > 0 && tagView.Items[0].Detail == partial.Caption && tagView.Items[0].Confidence is > 0
+            && tagView.Groups is [{ Count: 1, Target: "" }] && tagView.ModelName == "JoyTag", "partial tags project real labels, score, group and model");
+        tag.State = JobState.Paused;
+        Check(Project(tag, tags: partial).Items[0].State == StageState.Paused, "partial tag pauses with job");
+        tag.State = JobState.Failed; tag.Error = "模型中断";
+        Check(Project(tag, tags: partial) is { FailedItems: 1, IsPartial: true } failed && failed.Items[0].Detail.Contains(tag.Error), "failed partial tagging retains result and error");
+        tag.State = JobState.Completed;
+        Check(Project(tag, tags: partial with { IsPartial = false }) is { DoneItems: 1, FailedItems: 0, HasResult: true, IsPartial: false }, "complete tags are complete without guessing from progress");
+        var noLabels = Result(tag.Inputs[0]) with { Scores = [], InferredFrames = 0, Caption = null };
+        Check(Project(tag, tags: noLabels) is { ModelName: "", Groups.Count: 0 } noLabelsView
+            && noLabelsView.Items[0] is { Result: "", Confidence: null }, "no qualifying scores or model observations stay unknown");
+
+        var folder = NewJob(); folder.State = JobState.Running;
+        folder.Inputs = Enumerable.Range(0, 4).Select(index => Path.Combine(Root, index + ".jpg")).ToArray();
+        folder.Options.FolderClassification = new() { OutputFolder = Path.Combine(Root, "organized"), SplitTypes = true,
+            SourceFolders = [Root], ExcludedPaths = [folder.Inputs[3]] };
+        var files = new FolderClassificationTaskSnapshot([
+            new(folder.Inputs[0], Classified(folder.Inputs[0]), Pending: false),
+            new(folder.Inputs[1], Classified(folder.Inputs[1], partial: true)),
+            new(folder.Inputs[2], Error: "读取失败"), new(folder.Inputs[3], Pending: false)]);
+        folder.Activity = new("识别图片标签", "JoyTag", DateTime.UtcNow, DateTime.UtcNow) { Detail = Path.GetFileName(folder.Inputs[1]) };
+        var view = Project(folder, files);
+        Check(view.SourcePath == Root && !view.IsTagging && view is { TotalItems: 4, DoneItems: 1, FailedItems: 1, HasResult: true, IsPartial: true }
+            && view.Items.Select(item => item.State).SequenceEqual([StageState.Done, StageState.Active, StageState.Failed, StageState.Skipped]),
+            "classification projects counts, current item, failure and explicit exclusion");
+        Check(view.Items[0] is { Result: "蓝色", Confidence: .72 } && view.Items[0].Detail.Contains("实际分类依据")
+            && view.Items[2].Detail == "读取失败", "classification uses selected category score and saved evidence");
+        Check(view.Groups is [{ Name: "蓝色", Count: 1 }] && view.Groups[0].Target == Path.Combine(Root, "organized", "图片", "蓝色")
+            && view.Output.Path == FolderClassificationTaskStore.Folder(folder) && view.Output.IsFixedLocation,
+            "groups use actual destination layout and output remains checkpoint folder");
+        folder.Options.FolderClassification.OutputFolder = "";
+        Check(Project(folder, files).Groups[0].Target == "", "unconfigured classification target remains empty");
+        folder.Activity = null;
+        Check(Project(folder, files).Items[1].State == StageState.Pending,
+            "saved partial classification without current execution stays pending");
+        var multiple = files with { Files = [files.Files[0], new(folder.Inputs[0] + ".mp4", Classified(folder.Inputs[0] + ".mp4"), Pending: false)] };
+        folder.Options.FolderClassification.OutputFolder = Path.Combine(Root, "organized");
+        Check(Project(folder, multiple).Groups.Count == 2, "one category with multiple destinations keeps distinct groups");
+        var metadata = files with { Files = [new(folder.Inputs[0], Classified(folder.Inputs[0]) with
+            { Media = noLabels, Decisions = [new("duration", "时长", "short", "短片", [], [], null, 0, "时长分类")] }, Pending: false)] };
+        folder.Activity = null; folder.State = JobState.Completed;
+        Check(Project(folder, metadata) is { IsPartial: false, ModelName: "" } metadataView && metadataView.Items[0].Confidence is null,
+            "metadata-only classification invents neither model nor confidence");
+
+        var large = NewJob(); large.State = JobState.Running;
+        large.Inputs = Enumerable.Range(0, 600).Select(index => Path.Combine(Root, $"long-{index}.jpg")).ToArray();
+        large.Activity = new("识别图片标签", "JoyTag", DateTime.UtcNow, DateTime.UtcNow) { Detail = Path.GetFileName(large.Inputs[599]) };
+        var many = new FolderClassificationTaskSnapshot(large.Inputs.Select((path, index) => index == 550 ? new FolderClassificationTaskFile(path, Error: "失败")
+            : index == 599 ? new(path, Classified(path, partial: true)) : new(path, Classified(path), Pending: false)).ToArray());
+        var capped = Project(large, many);
+        Check(capped is { TotalItems: 600, DoneItems: 598, FailedItems: 1, Items.Count: 502 }
+            && capped.Items[^2] is { State: StageState.Failed } && capped.Items[^1] is { State: StageState.Active },
+            "capped rows preserve processing order, all failures and active rows with full counts");
+
+        await SavedViewsAsync();
+    }
+
+    private static async Task SavedViewsAsync()
+    {
+        // Synthetic encoded fixture only; no media engine, inference or real source file is used.
+        using var image = new ImageMagick.MagickImage(ImageMagick.MagickColors.Blue, 800, 400);
+        var encoded = image.ToByteArray(ImageMagick.MagickFormat.Png);
+        var tag = NewJob("media-ai"); tag.State = JobState.Completed; tag.Inputs = [Path.Combine(Root, "saved.jpg")];
+        tag.Options.MediaTag = new() { WriteTextReport = false }; tag.Output = AiTaskResults.PathFor(tag, "tags");
+        var saved = Result(tag.Inputs[0]) with { Preview = encoded, PreviewCaption = "已分析画面", PreviewUtc = DateTime.UtcNow };
+        await AiTaskResults.SaveAsync(tag.Output, saved, default);
+        using (var session = new MediaClassificationTaskSession(tag, new Host()))
+        {
+            Check(session is IMediaClassificationTask, "session implements tool-specific contract");
+            await WaitUntilAsync(() => session.View is { HasResult: true, Preview: not null, Output.Exists: true });
+            var restored = session.View;
+            Check(restored is { DoneItems: 1, IsPartial: false, PreviewCaption: "已分析画面" }
+                && restored.Output.Bytes == new FileInfo(tag.Output).Length && restored.Output.IsFixedLocation && tag.MediaTagResult is null,
+                "tag view restores durable JSON without mutating execution state");
+            Check(restored.Preview![0] == 137 && System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(restored.Preview.AsSpan(16, 4)) <= 640,
+                "view exposes encoded bounded PNG from saved preview");
+            var revision = session.Snapshot.Revision;
+            var coherent = false;
+            void Observe(object? sender, EventArgs args)
+            { if (session.View.Items[0].Result == "" && session.View.HasResult) coherent = session.Snapshot.Revision > revision; }
+            session.Changed += Observe;
+            await RefreshAsync(session, () => tag.MediaTagResult = saved with { Scores = [] });
+            session.Changed -= Observe;
+            Check(coherent && session.View.Items[0].Result == "" && restored.Items[0].Result.Length > 0,
+                "view-only changes publish both views before Changed and preserve earlier values");
+            await RefreshAsync(session, () => tag.Activity = new("分析", "实际模型", DateTime.UtcNow, DateTime.UtcNow)
+                { Preview = encoded, PreviewCaption = "当前画面" });
+            Check(session.View is { Preview: not null, PreviewCaption: "当前画面", ModelName: "实际模型" }, "live activity supplies preview, caption and model");
+            await RefreshAsync(session, () => tag.State = JobState.Waiting);
+            Check(session.View is { HasResult: false, Preview: null, ModelName: "", DoneItems: 0 }, "requeued session hides saved and live results");
+        }
+        var folder = NewJob(); folder.Inputs = [Path.Combine(Root, "saved-folder.jpg")]; folder.State = JobState.Cancelled;
+        var file = new FolderClassificationTaskFile(folder.Inputs[0], Classified(folder.Inputs[0]) with { Media = saved with { Path = folder.Inputs[0] } }, Pending: false);
+        await FolderClassificationTaskStore.SaveFileAsync(folder, file);
+        using (var session = new MediaClassificationTaskSession(folder, new Host()))
+        {
+            await WaitUntilAsync(() => session.View.HasResult && session.View.Preview is not null);
+            Check(session.View is { DoneItems: 1, IsPartial: true, Groups.Count: 1, PreviewCaption: "已分析画面" }
+                && session.View.Items[0].Result == "蓝色" && folder.ClassificationSnapshot is null,
+                "folder view restores checkpoint result and preview after restart");
+        }
+        var corrupt = NewJob("media-ai"); corrupt.State = JobState.Failed; corrupt.Inputs = [Path.Combine(Root, "corrupt.jpg")];
+        var resultPath = AiTaskResults.PathFor(corrupt, "tags"); Directory.CreateDirectory(Path.GetDirectoryName(resultPath)!);
+        await File.WriteAllTextAsync(resultPath, "{invalid");
+        // A host capability change proves the worker completed its attempted restore and still publishes.
+        var host = new Host(); using var invalid = new MediaClassificationTaskSession(corrupt, host);
+        await RefreshAsync(invalid, () => host.Allowed = false);
+        Check(invalid.View is { HasResult: false, Preview: null, ModelName: "", IsPartial: true }, "corrupt saved result leaves facts unknown");
     }
 
     private sealed class Clock : TimeProvider

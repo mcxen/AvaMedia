@@ -3,13 +3,18 @@ using System.Text.Json;
 namespace AvaMedia.Core;
 
 /// <summary>Window-scoped observer of AI tagging or folder classification; execution belongs to the queue.</summary>
-public sealed class MediaClassificationTaskSession : IMultiStageTask
+public sealed class MediaClassificationTaskSession : IMediaClassificationTask
 {
     private readonly Job _job;
     private readonly IMultiStageQueueHost _host;
     private readonly object _gate = new();
     private readonly Timer _timer;
-    private readonly MediaClassificationSummary? _restored;
+    private MediaClassificationSummary? _restored;
+    private FolderClassificationTaskSnapshot? _restoredFiles;
+    private MediaTagResult? _restoredTags;
+    private bool _loaded;
+    private byte[]? _previewSource, _preview;
+    private MediaClassificationTaskView _view = new();
     private MultiStageTaskSnapshot _snapshot = new();
     private volatile bool _disposed;
     private int _publishing;
@@ -21,35 +26,26 @@ public sealed class MediaClassificationTaskSession : IMultiStageTask
             throw new ArgumentException("需要 AI 标签或媒体分类任务。", nameof(job));
         _job = job; _host = host;
         Stages = MediaClassificationStageIds.For(job);
-        try
-        {
-            var path = MediaClassificationTaskState.SummaryPath(job);
-            if (File.Exists(path))
-            {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                var summary = JsonSerializer.Deserialize<MediaClassificationSummary>(stream);
-                if (summary?.Stages is { } stages && stages.Select(stage => stage.Stage.Id).SequenceEqual(Stages.Select(stage => stage.Id)))
-                    _restored = summary;
-            }
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
-        { System.Diagnostics.Trace.TraceWarning("Classification stages: {0}", error.Message); }
-        Publish(false);
-        _timer = new(_ => Publish(), null, 250, 250);
+        // Construction and property reads never perform disk I/O or decode an image.
+        Publish(false, false);
+        _timer = new(_ => Publish(), null, 0, 250);
     }
 
     public string FeatureId => _job.FeatureId;
     public IReadOnlyList<TaskStageDescriptor> Stages { get; }
     public MultiStageTaskSnapshot Snapshot { get { lock (_gate) return _snapshot; } }
+    public MediaClassificationTaskView View { get { lock (_gate) return _view; } }
     public event EventHandler? Changed;
 
-    private void Publish(bool notify = true)
+    private void Publish(bool notify = true, bool readSaved = true)
     {
         if (Interlocked.Exchange(ref _publishing, 1) != 0) return;
         try
         {
             if (_disposed) return;
+            if (readSaved && !_loaded) LoadSaved();
             var previous = Snapshot;
+            var previousView = View;
             var state = _job.State;
             var live = _job.MediaClassificationStages;
             var summary = live?.Capture() ?? _restored;
@@ -77,13 +73,58 @@ public sealed class MediaClassificationTaskSession : IMultiStageTask
                     CanStop = _host.CanStop(_job), CanRerun = _host.CanRerun(_job), CanChangeOutput = _host.CanChangeOutput(_job) },
                 SnapshotUtc = DateTime.UtcNow, Revision = previous.Revision + 1
             };
-            if (stages.SequenceEqual(previous.Stages)
+            var files = _job.ClassificationSnapshot ?? _restoredFiles;
+            var tags = _job.MediaTagResult ?? (live is null ? _restoredTags : null);
+            var activity = configuring ? null : _job.Activity;
+            var latest = configuring ? null : tags ?? files?.Files.Select(file => file.Result?.Media).OfType<MediaTagResult>()
+                .Where(media => media.Preview is not null).MaxBy(media => media.PreviewUtc);
+            var previewSource = activity?.Preview ?? latest?.Preview;
+            if (readSaved && !ReferenceEquals(previewSource, _previewSource))
+            {
+                _previewSource = previewSource;
+                _preview = MediaClassificationTaskViewProjection.Thumbnail(previewSource);
+            }
+            var view = MediaClassificationTaskViewProjection.Create(_job, snapshot, files, tags,
+                _preview, activity?.Preview is not null ? activity.PreviewCaption : latest?.PreviewCaption ?? "",
+                readSaved);
+            if (MediaClassificationTaskViewProjection.Equivalent(view, previousView)
+                && stages.SequenceEqual(previous.Stages)
                 && snapshot with { Stages = previous.Stages, SnapshotUtc = previous.SnapshotUtc, Revision = previous.Revision } == previous) return;
             // Host capability checks can dispatch to the UI thread, whose readers also need _gate.
-            lock (_gate) { if (_disposed) return; _snapshot = snapshot; }
+            lock (_gate) { if (_disposed) return; _snapshot = snapshot; _view = view; }
             if (notify) Changed?.Invoke(this, EventArgs.Empty);
         }
         finally { Volatile.Write(ref _publishing, 0); }
+    }
+
+    private void LoadSaved()
+    {
+        _loaded = true;
+        // Timer callbacks run on the thread pool. Never restore observations from an earlier queued run.
+        if (_job.State == JobState.Waiting) return;
+        try
+        {
+            using var stream = new FileStream(MediaClassificationTaskState.SummaryPath(_job), FileMode.Open,
+                FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var summary = JsonSerializer.Deserialize<MediaClassificationSummary>(stream);
+            if (summary?.Stages is { } stages && stages.Select(stage => stage.Stage.Id).SequenceEqual(Stages.Select(stage => stage.Id)))
+                _restored = summary;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        { System.Diagnostics.Trace.TraceWarning("Classification stages: {0}", error.Message); }
+        try
+        {
+            if (FeatureId == "folder-classification")
+                _restoredFiles = FolderClassificationTaskStore.LoadAsync(_job).GetAwaiter().GetResult();
+            else if (_job.MediaClassificationStages is null)
+            {
+                var path = _job.Options.MediaTag?.WriteTextReport == false && _job.Output.Length > 0
+                    ? _job.Output : AiTaskResults.PathFor(_job, "tags");
+                _restoredTags = AiTaskResults.LoadAsync<MediaTagResult>(path).GetAwaiter().GetResult();
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        { System.Diagnostics.Trace.TraceWarning("Classification results: {0}", error.Message); }
     }
 
     public async Task<IReadOnlyList<TaskLogEntry>> ReadLogAsync(CancellationToken ct = default)
