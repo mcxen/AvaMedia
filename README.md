@@ -6,9 +6,9 @@
 [![Release](https://github.com/mcxen/AvaMedia/actions/workflows/release.yml/badge.svg)](https://github.com/mcxen/AvaMedia/actions/workflows/release.yml)
 [![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
 
-面向 **Windows 和 macOS** 的开源桌面媒体工具，同时提供 **Linux x64 开发包**。媒体转换、压缩、导出、下载和 AI 分析共用批量任务队列；播放、看图与参数编辑使用独立窗口。
+面向 **Windows 和 macOS** 的开源桌面媒体工具，同时提供 **Linux x64 开发包**。媒体转换、压缩、导出、下载和 AI 分析共用批量任务队列；播放、看图与参数编辑使用独立窗口。人物片段、方向检测、自动字幕、视频总结和媒体分类使用独立的多页任务窗口：一个窗口按页管理处理、需要用户操作的交互页和完成结果，页状态、草稿与重试检查点随任务保存。
 
-使用 **C#、.NET 8 和 Avalonia 11** 开发，提供简体中文 / English 界面与 Light、Dark、Mac OS 9 · Platinum 与 Windows XP · Luna 四套皮肤。当前仍为开发版，功能范围和已验证结果见 [功能说明](docs/FEATURES.md)。
+使用 **C#、.NET 8 和 Avalonia 11** 开发，提供简体中文 / English 界面与 Light、Dark、Mac OS 9 · Platinum 与 Windows XP · Luna 四套皮肤。浅色、深色和跟随系统模式的普通窗口使用系统标题栏，Mac OS 9 与 Windows XP 保留经典皮肤外框。当前仍为开发版，功能范围和已验证结果见 [功能说明](docs/FEATURES.md)。
 
 [下载](https://github.com/mcxen/AvaMedia/releases/latest) · [MCP 与网页远程管理](#mcp-与网页远程管理) · [界面截图](#界面截图) · [从源码运行](#从源码运行) · [报告问题](https://github.com/mcxen/AvaMedia/issues)
 
@@ -33,25 +33,27 @@ macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；�
 
 | 功能 | 支持内容 |
 | --- | --- |
-| 视频转换与压缩 | MP4、MKV、WebM、AVI、MOV、TS 等；画质、码率或目标体积；Apple、NVIDIA、Intel、AMD 硬件转码与软件回退；iPhone HDR 转 SDR |
+| 视频转换与压缩 | MP4、MKV、WebM、AVI、MOV、TS 等；画质、码率或目标体积；Apple、NVIDIA、Intel、AMD 硬件转码与软件回退，Linux 另支持 VAAPI；iPhone HDR 转 SDR |
 | 视频瘦身 | 按真实画面采样、试编码和质量评分选择参数，预估体积后导出；支持逐行 SDR 视频，保留源文件 |
 | 剪辑与批量处理 | 多文件、多片段、按段数 / 时长 / 时间点分割；裁剪、旋转、镜像、速度、淡入淡出；批量裁剪、方向建议、重命名与多宫格截图 |
 | 音轨与字幕 | 合并、混流、音视频流提取；选轨、多音轨保留、采样率、声道、音量与音频效果；字幕烧录或独立字幕轨 |
-| 自动字幕与人声增强 | 离线语音识别、字幕文字与时间校对、样式和位置调整；导出 SRT / ASS 或烧录 MP4 / MKV；音视频人声降噪 |
+| 自动字幕与人声增强 | 离线语音识别、字幕文字与时间校对、样式和位置调整；生成前选择导出 SRT / ASS 或嵌入视频（软字幕 / 硬字幕）；音视频人声降噪 |
 | 图片转换与压缩 | HEIC / HEIF 输入；JPEG、WebP、PNG 压缩；实际编码后的体积与前后对比；只保存变小的压缩结果并保留原图；另有图片格式转换、缩放与旋转 |
 | 天池看图 | 目录和压缩包图片浏览、双页、动画、EXIF、幻灯片、收藏及批量导出 |
 | PDF 工作区 | 页面预览、选页、排序、旋转、拆分与合并；图片 / TXT 排版为 PDF；PDF 做旧、压缩及文本提取 |
 | 自动标签分类 | 图片 / 视频标签、中文词库、NSFW 复核、画面描述、分数与采样曲线，以及 TXT / JSON 导出 |
 | 自动媒体整理 | 按标签、语义、时长、姿势、人物、相似服装等分组；人工调整、目录预览、复制 / 移动与撤销 |
 | 视频总结 | 本地或线上 AI，结合字幕 / 语音和可选画面分析，生成摘要、章节、内容分析与报告 |
-| 保留有人片段 · Beta | 多模型人物检测、免检测区间、结果查看及原格式 / 重新编码导出 |
+| 保留有人片段 · Beta | 多模型人物检测、免检测区间、调整片段编辑器（片段列表、检查器、拆分合并与检测边界吸附），以及原格式 / 重新编码导出 |
 | 视频下载 | 分享文本、批量链接、播放列表 / 分 P / 相册；画质、视频 / 音频、字幕、登录态、代理与失败重试；Windows / macOS 内嵌浏览器嗅探 |
 | 天池播放器 | 独立播放窗口、目录播放列表、全屏、倍速、选轨、逐帧定位、当前帧截图、VR；可选原生 mpv 播放 4K / HDR 与原盘 |
 | WiFi 传文件 | 同一局域网内，手机扫码通过浏览器上传文件，电脑也可分享文件给手机下载 |
-| MCP 与网页远程管理 | AI 客户端通过 MCP 创建媒体与 AI 任务、查询进度及读取结果；浏览器可浏览服务器文件、配置和下发任务，与桌面共用队列 |
-| 任务队列与工具 | 并行处理、进度、停止、编辑参数、重试、日志、自动保存与导入导出；ZIP 压缩 / 解压、DVD / VOB 转换和原始数据复制为 ISO |
+| MCP 与网页远程管理 | AI 客户端通过 MCP 创建媒体与 AI 任务、查询进度、读取结果，并读写原生设置、线上供应商与本地模型；浏览器可浏览服务器文件、配置和下发任务，与桌面共用队列 |
+| 任务队列与工具 | 并行处理、进度、停止、编辑参数、重试、日志、结果恢复与重试检查点、自动保存与导入导出；等待用户操作的任务排在进行中最前；ZIP 压缩 / 解压、DVD / VOB 转换和原始数据复制为 ISO |
 
 主窗口侧栏按视频、音频、图片、文档、工具集五类组织，光盘位于工具集内。拖入文件后，路由按文件类型显示匹配工具及带入 / 跳过数量，支持按类型勾选文件和键盘选择；选定工具并确认参数后，可立即执行或仅加入队列。快速剪辑先编辑片段，再统一配置导出，默认每个片段生成独立文件。
+
+任务列表按状态分组，运行中的多页任务显示分段阶段进度与悬停详情，等待用户操作的任务排在“进行中”最前并提供“去处理”，打开同一任务窗口并定位到当前页。多页窗口的已完成页可回看，修改已完成的交互页会让后续页重新处理，关闭窗口不停止队列。从任务行或任务窗口拖出文件只执行复制，不移动源文件。
 
 ### 使用边界
 
@@ -59,7 +61,8 @@ macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；�
 - **HEIC / HEIF** 压缩只处理静态主图，输出 JPEG / WebP / PNG，不保留 Live Photo 视频、深度图或 HDR 增益图。
 - **PDF → DOCX / XLSX** 提取文本，不重建原始排版；PDF 做旧和整页压缩会栅格化页面。
 - **去除水印** 使用选区周围像素进行插值修复，不能还原被遮挡的真实内容；重新封装也不保证修复损坏媒体。
-- **AI 与模型**：按所选功能下载所需模型；有限采样和模型输出可能遗漏或误判，字幕、标签、人物片段和总结需复核。线上 AI 会发送选定资料与采样画面。LaMa 当前仅有模型安装，修复推理尚未接入；启动时后台下载该模型默认开启，可在设置的本地模型页关闭。
+- **AI 与模型**：按所选功能下载所需模型。本地画面分析与总结默认使用 Huihui Qwen3.5 9B abliterated Q4（约 6.55 GB），可选 4B 基础档（约 3.38 GB）。有限采样和模型输出可能遗漏或误判，字幕、标签、人物片段和总结需复核。线上 AI 会发送选定资料与采样画面。LaMa 当前仅有模型安装，修复推理尚未接入；启动时后台下载该模型默认开启，可在设置的本地模型页关闭。
+- **硬件与执行后端**：FFmpeg、ONNX、Whisper 和 llama.cpp 按平台探测可用后端，任务与结果记录实际执行后端；GPU 启动或推理失败会回退 CPU，不完整的 GPU 解码输出用软件重跑，libx264 等软件编码器保持软件编码。部分平台包仍只带 CPU 推理，硬件路径取决于驱动、设备权限和编解码器支持，各后端尚未完成真机验收。
 - **平台能力**：硬件转码取决于驱动、编码器、容器及输入；原生 mpv 运行包首次使用时单独下载，应用自动下载的 macOS mpv 运行包要求 macOS 14 及以上。Windows 浏览器嗅探需要可用的 WebView2 Runtime。
 - 下载可用性取决于站点、账号、地区和网络限制，详见 [视频下载](docs/VIDEO-DOWNLOAD.md)。
 
@@ -73,9 +76,11 @@ macOS 安装包面向 **Apple Silicon（ARM64），声明最低 macOS 13.4**；�
 
 网页随应用打包，媒体处理和模型推理在运行 AvaMedia 的电脑上完成；文件路径指向该电脑，远程客户端不会自动上传本地文件。桌面、网页和 MCP 共用任务队列，关闭网页不取消任务，主窗口缩到托盘后服务继续运行。后台宿主仍需要桌面会话。连接配置、常驻启动及工具列表见 [MCP 使用说明](docs/MCP.md)，网页功能范围与待完成事项见 [网页视频功能对齐状态](docs/WEB-VIDEO-PARITY.md)。
 
+MCP 直接调用 Core 与桌面设置流程，不模拟界面操作：可读取每个功能的完整参数 Schema 和任务参数、编辑尚未启动的等待任务，读写原生设置字段、线上供应商和本地模型，并获取 AI 阶段进度、分类确认与总结证据。交互式播放、看图与登录仍保留桌面入口。
+
 ## 界面截图
 
-以下为 **2026-10-09、v1.1.51** macOS 开发构建的历史中文配图，当前主窗口、设置和工具布局已有调整。这些截图只展示当时窗口外观，不代表当前功能或其他平台已验收；示例画面来自 [NASA 公共领域照片](tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。
+以下为 **2026-10-09、v1.1.51** macOS 开发构建的历史中文配图。当前主窗口、设置和工具布局已有调整，浅色与深色皮肤的普通窗口也已改用系统标题栏，配图中的自绘标题栏不再代表当前外观。这些截图只展示当时窗口外观，不代表当前功能或其他平台已验收；示例画面来自 [NASA 公共领域照片](tests/AvaMedia.BatchRotateTests/Fixtures/README.md)。
 
 | Light | Dark |
 | --- | --- |
@@ -136,13 +141,14 @@ dotnet run --project src/AvaMedia.Desktop -c Release --no-build
 | 转换与压缩 | [视频压缩](docs/VIDEO-COMPRESSION.md) · [视频瘦身](docs/VIDEO-SLIMMING.md) · [图片压缩](docs/IMAGE-COMPRESSION.md) · [HEIC](docs/HEIC.md) · [TS 视频](docs/TS-VIDEO.md) · [GPU 转码](docs/GPU-TRANSCODING.md) |
 | 编辑与播放 | [快速剪辑](docs/QUICK-CLIP.md) · [视频编辑](docs/VIDEO-EDITING.md) · [批量裁剪](docs/BATCH-CROP.md) · [批量旋转](docs/BATCH-ROTATE.md) · [字幕与选轨](docs/SUBTITLE-OPTIONS.md) · [播放器](docs/PLAYER.md) |
 | 文件与工具 | [文件路由](docs/MEDIA-ROUTING.md) · [WiFi 传文件](docs/WIFI-TRANSFER.md) · [天池看图](docs/IMAGE-VIEWER.md) · [PDF 工作区](docs/PDF-WORKSPACE.md) · [视频下载](docs/VIDEO-DOWNLOAD.md) · [批量工具](docs/BATCH-TOOLS.md) |
+| 任务与后台 | [任务管理](docs/TASK-MANAGEMENT.md) · [后台任务](docs/BACKGROUND-TASKS.md) · [通知](docs/NOTIFICATIONS.md) · [跨工具资源调度](docs/MEDIA-RESOURCE-SCHEDULING.md) |
 | AI 与模型 | [自动标签分类](docs/MEDIA-AI.md) · [自动媒体整理](docs/FOLDER-CLASSIFICATION.md) · [视频总结](docs/VIDEO-SUMMARY.md) · [有人片段](docs/PERSON-CLIP.md) · [字幕与语音](docs/SPEECH-TOOLS.md) · [模型管理](docs/MODELS.md) |
 | 远程管理 | [MCP 与网页工具箱](docs/MCP.md) · [网页视频功能对齐状态](docs/WEB-VIDEO-PARITY.md) |
 | 开发与发布 | [架构](docs/ARCHITECTURE.md) · [设置](docs/SETTINGS.md) · [Mac OS 9](docs/MACOS9-SKIN.md) · [Windows XP](docs/WINDOWS-XP-SKIN.md) · [Windows / macOS](docs/PLATFORMS.md) · [Linux](docs/LINUX.md) · [Git 工作流](docs/GIT-WORKFLOW.md) · [自动发布](docs/RELEASE.md) |
 
 欢迎通过 [Issues](https://github.com/mcxen/AvaMedia/issues) 报告问题或提出建议。媒体相关问题请附系统版本、应用版本、输入格式、操作步骤和错误日志。
 
-发布由 `vMAJOR.MINOR.PATCH` tag 触发。日常提交照常推送；相对上次已发布 tag 的有效代码变更累计达到 **1200 行**且相关本地检查通过后，才创建新版本 tag。文档、许可证、资源和生成文件不计入，已发布 tag 保持不变。具体流程见 [Git 工作流](docs/GIT-WORKFLOW.md)。
+发布由 `vMAJOR.MINOR.PATCH` tag 触发。日常提交照常推送；相对上次已发布 tag 的有效代码变更累计达到 **1200 行**且相关本地检查通过后，才创建新版本 tag。创建 tag 前需先提交对应的 `docs/releases/<版本>.md` 版本说明：普通 CI 在编译前核对源码版本与版本说明，Release 工作流在构建安装包前检查说明存在且非空。文档、许可证、资源和生成文件不计入变更行数，已发布 tag 保持不变。具体流程见 [Git 工作流](docs/GIT-WORKFLOW.md)。
 
 ## 许可证
 
