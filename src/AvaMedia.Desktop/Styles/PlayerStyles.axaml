@@ -1,4 +1,11 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:AvaMedia.Desktop.Controls">
+  <Style Selector="Window.player Button.player-transport">
+    <Setter Property="Width" Value="{DynamicResource UiPlayerButtonSize}"/>
+    <Setter Property="Height" Value="{DynamicResource UiPlayerButtonSize}"/>
+    <Setter Property="MinHeight" Value="{DynamicResource UiPlayerButtonSize}"/>
+    <Setter Property="Padding" Value="{DynamicResource UiCompactButtonPadding}"/>
+  </Style>
+  <Style Selector="Window.player Button.player-speed"><Setter Property="Width" Value="{DynamicResource UiPlayerSpeedWidth}"/></Style>
 
   <Style Selector="Window.player Button.player-transport controls|ActionIcon">
     <Setter Property="Width" Value="{DynamicResource UiIconSize}"/><Setter Property="Height" Value="{DynamicResource UiIconSize}"/>
