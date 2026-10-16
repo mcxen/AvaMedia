@@ -2,7 +2,7 @@
 
 本文保留 2026-10-06 的旧工具测量。当前发布使用固定源码的 GPL FFmpeg，并内置到安装包；现行配方与许可见 [FFmpeg 构建](../FFMPEG-MACOS.md) 和 [第三方声明](../../THIRD-PARTY-NOTICES.md)。下文的 BtbN 安装方式和“未嵌入”描述仅属于当日版本。
 
-2026-10-06 实测。比较对象为本机 FormatFactory X64 5.10.0、原开发用 BtbN 静态 LGPL 构建与新安装的 BtbN 共享 LGPL 构建。MiB = 1,048,576 字节；原始文件尺寸与能力对照见 [测量记录](../engine/ffmpeg-size-20261006.json)。
+2026-10-06 实测。比较对象为本机 FormatFactory X64 5.10.0、原开发用 BtbN 静态 LGPL 构建与新安装的 BtbN 共享 LGPL 构建。MiB = 1,048,576 字节；原始文件尺寸与能力对照见 [测量记录](../measurements/ffmpeg-size-20261006.json)。
 
 | 对象 | FFmpeg 程序 | 探测程序 | 媒体运行文件合计 |
 | --- | ---: | ---: | ---: |
