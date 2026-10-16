@@ -162,9 +162,11 @@ Check(outputs.Last().Frequency > 700 && outputs.Last().Frequency < 1000, "The au
 var videoMenu = trackWindow.BuildMenu().Items.OfType<MenuItem>().Single(i => i.Header?.ToString() == "视频轨");
 videoMenu.Items.OfType<MenuItem>().Last().RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent)); Complete(trackWindow.CommandReady);
 Check(trackDecoder!.Frame.PixelSize.Width == 160 && trackWindow.IsPlaying, "The video menu switches to the real second stream and its dimensions");
+var trackImage = Find<Image>(trackWindow, "VideoImage");
+trackImage.Stretch = Avalonia.Media.Stretch.Fill;
 var stretchMenu = trackWindow.BuildMenu().Items.OfType<MenuItem>().Single(i => i.Header?.ToString() == "画面比例");
-stretchMenu.Items.OfType<MenuItem>().Last().RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
-Check(Find<Image>(trackWindow, "VideoImage").Stretch == Avalonia.Media.Stretch.Fill, "The aspect menu changes the actual picture layout");
+stretchMenu.Items.OfType<MenuItem>().Single(i => i.Header?.ToString() == "保持画面比例").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+Check(trackImage.Stretch == Avalonia.Media.Stretch.Uniform, "The aspect menu restores the actual picture layout to its source ratio");
 trackWindow.Close(); Pump();
 var playlist = new PlayerWindow(engine, [shortClip, next], (_, path) => Create(path)); playlist.Show(); Complete(playlist.Ready);
 Wait(() => playlist.CurrentPath == next && playlist.IsPlaying); Check(playlist.CurrentPath == next, "EOF automatically advances to the next file"); playlist.Close(); Pump();
