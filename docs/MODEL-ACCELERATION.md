@@ -2,7 +2,7 @@
 
 所有实际加载的本地 AI 模型统一先尝试平台加速后端。后端不可用、初始化失败或推理失败时才回退 CPU；不再通过首次测速主动选择 CPU。分析、模型缓存、后台预热和队列任务采用同一策略，AI 参数及窗口中的 GPU 开关已移除。视频编码的硬件加速选项独立保留。
 
-Core ML 的 MLProgram 初始化失败时，先尝试同一后端的 NeuralNetwork 格式，再回退 CPU；后端字段区分这次格式重试。服装特征的 DINOv2 输入固定为 1×3×224×224，确保 Core ML 可以接管其计算图。实际视频运行结果见 [2026-10-11 服装分析验收](OUTFIT-VIDEO-ACCEPTANCE-20261011.md)。
+Core ML 的 MLProgram 初始化失败时，先尝试同一后端的 NeuralNetwork 格式，再回退 CPU；后端字段区分这次格式重试。服装特征的 DINOv2 输入固定为 1×3×224×224，确保 Core ML 可以接管其计算图。实际视频运行结果见 [2026-10-11 服装分析验收](acceptance/OUTFIT-VIDEO-ACCEPTANCE-20261011.md)。
 
 ## 全量清单
 

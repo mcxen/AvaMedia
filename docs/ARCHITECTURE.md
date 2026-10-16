@@ -1,6 +1,6 @@
 # 架构与接口层
 
-更新：2026-10-13。本文记录当前模块、依赖方向与生命周期；界面约束由 [UISPEC.MD](../UISPEC.MD) 维护，逐项覆盖见 [工具界面](TOOL-INTERFACES.md)，历史源码审查见 [界面源码审查](UI-DESIGN-REVIEW.md)。开发与检查范围以 [AGENTS.md](../AGENTS.md) 为准。
+更新：2026-10-13。本文记录当前模块、依赖方向与生命周期；界面约束由 [UISPEC.MD](../UISPEC.MD) 维护，逐项覆盖见 [工具界面](TOOL-INTERFACES.md)。开发与检查范围以 [AGENTS.md](../AGENTS.md) 为准。
 
 ## 模块与依赖
 

@@ -18,7 +18,7 @@
 ## 开发与发布
 
 - [架构与接口](ARCHITECTURE.md)、[异步任务架构](ASYNC-TASK-ARCHITECTURE.md)、[跨工具资源调度](MEDIA-RESOURCE-SCHEDULING.md)、[MCP 服务](MCP.md)、[网页视频功能对齐状态](WEB-VIDEO-PARITY.md)、[共享文件选择](FILE-SELECTION.md)、[空闲内存](IDLE-MEMORY.md)。
-- [界面规范](../UISPEC.MD)、[通用组件库](../src/AvaMedia.Controls/README.md)、[工具入口与工作区](TOOL-INTERFACES.md)、[侧栏工具树](SIDEBAR-TREE.md)、[窗口框架](WINDOW-CHROME.md)、[动态布局](UI-LAYOUT-STABILITY.md)、[2026-10-11 界面源码审查](UI-DESIGN-REVIEW.md)。
+- [界面规范](../UISPEC.MD)、[通用组件库](../src/AvaMedia.Controls/README.md)、[工具入口与工作区](TOOL-INTERFACES.md)、[侧栏工具树](SIDEBAR-TREE.md)、[窗口框架](WINDOW-CHROME.md)。
 - [自动发布与打包](RELEASE.md)、[macOS FFmpeg 配方](FFMPEG-MACOS.md)、[第三方声明](../THIRD-PARTY-NOTICES.md)。
 - [验收与测量记录](acceptance/README.md)：按日期和范围查看真实模型、媒体输出、界面、消融与性能证据。
 - [版本记录](releases/README.md)：发布说明、历史变更和已归档的校验数据。
