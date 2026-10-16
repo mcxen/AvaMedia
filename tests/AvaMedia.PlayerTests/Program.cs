@@ -120,8 +120,9 @@ foreach (var skin in new[] { "Light", "Dark", "MacOS9" })
     Key(window, Avalonia.Input.Key.M); Check(current.Muted && current.Volume == .95f, skin + ": M preserves the chosen volume");
     Key(window, Avalonia.Input.Key.Enter); Check(window.WindowState == WindowState.FullScreen, skin + ": Enter enters fullscreen");
     Key(window, Avalonia.Input.Key.Escape); Check(window.WindowState != WindowState.FullScreen, skin + ": Escape exits fullscreen");
-    Key(window, Avalonia.Input.Key.F1); Check(Find<Border>(window, "ShortcutHelp").IsVisible, skin + ": F1 shows the key reference");
-    Key(window, Avalonia.Input.Key.F1);
+    var shortcutMenu = Find<Button>(window, "PlayerMenuButton");
+    Key(window, Avalonia.Input.Key.F1); Check(ToolTip.GetIsOpen(shortcutMenu) && ToolTip.GetTip(shortcutMenu) is string shortcuts && shortcuts.Contains("F1") && shortcuts.Contains("Space"), skin + ": F1 shows the key reference in the menu tooltip");
+    Key(window, Avalonia.Input.Key.F1); Check(!ToolTip.GetIsOpen(shortcutMenu), skin + ": F1 closes the key reference tooltip");
     Key(window, Avalonia.Input.Key.F6); Check(Find<Border>(window, "PlaylistPanel").IsVisible && Find<ListBox>(window, "PlaylistList").ItemCount >= 2, skin + ": F6 opens the real playlist beside the picture");
     Key(window, Avalonia.Input.Key.F6);
     foreach (var size in new[] { (1100d, 720d, "normal"), (760d, 460d, "minimum") })
