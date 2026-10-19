@@ -82,6 +82,7 @@ public sealed class ConvertWindow : Window
         if(formatChoices.Length>1){top.Children.Add(Ui.ComponentText("输出格式"));top.Children.Add(formats);}
         var kind=feature.Operation==Operation.SplitVideo?MediaOptionsKind.VideoOnly:feature.Category=="音频" || feature.Operation==Operation.SplitAudio?MediaOptionsKind.Audio:feature.Category=="图片"?MediaOptionsKind.Image:MediaOptionsKind.Video;
         var media=feature.Operation!=Operation.Info && (feature.Category is "视频" or "音频" or "图片" && feature.Operation!=Operation.ImagesPdf || feature.Operation is Operation.Mux or Operation.SplitVideo or Operation.Join || feature.Id is "repair" or "crop" or "rotate");
+        var ordered=feature.Operation is Operation.Join or Operation.AudioMix;
         var list=new ListBox{ItemsSource=_entries,SelectionMode=visualImages?SelectionMode.Single:SelectionMode.Multiple,Classes={"ac","surface"}};
         var setting=new Button{ Classes = { "ac" },Content="输出配置…",IsVisible=media};setting.Click+=async(_,_)=>
         {
@@ -128,14 +129,28 @@ public sealed class ConvertWindow : Window
         list.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<ConversionEntry>((entry,_)=>
         {
             if(entry is null)return new Border();
-            var row=new Grid{ColumnDefinitions=new("Auto,*")};
+            var row=new Grid{ColumnDefinitions=ordered?new("Auto,Auto,*"):new("Auto,*")};
             row.Bind(Grid.ColumnSpacingProperty,new DynamicResourceExtension("AcRowGap"));
-            if(feature.Operation==Operation.Mux)row.Children.Add(Ui.ComponentText(_entries.IndexOf(entry)==0?"视频":"音频","caption"));
+            var textColumn=0;
+            if(ordered)
+            {
+                var grip=new Border
+                {
+                    Width=28,Cursor=new Cursor(StandardCursorType.SizeNorthSouth),Background=Brushes.Transparent,
+                    Child=new LucideIcon{Kind="grip-vertical",Width=14,Height=14,HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center}
+                };
+                grip.Child.Bind(LucideIcon.ForegroundProperty,new DynamicResourceExtension("UiTextSecondary"));
+                ToolTip.SetTip(grip,"拖动调整顺序");Avalonia.Automation.AutomationProperties.SetName(grip,Localization.Text("拖动调整顺序")+" · "+System.IO.Path.GetFileName(entry.Path));
+                grip.PointerPressed+=(_,e)=>BeginReorder(entry,grip,e);
+                row.Children.Add(grip);textColumn=1;
+            }
+            if(feature.Operation==Operation.Mux){var role=Ui.ComponentText(_entries.IndexOf(entry)==0?"视频":"音频","caption");Grid.SetColumn(role,textColumn);row.Children.Add(role);}
             else
             {
                 var include=new CheckBox{Classes={"ac"},IsChecked=entry.Include};
                 include.Bind(CheckBox.IsCheckedProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Include)){Mode=Avalonia.Data.BindingMode.TwoWay});
-                ToolTip.SetTip(include,Localization.Text("处理此文件"));Avalonia.Automation.AutomationProperties.SetName(include,Localization.Text("处理此文件")+" · "+System.IO.Path.GetFileName(entry.Path));row.Children.Add(include);
+                ToolTip.SetTip(include,Localization.Text("处理此文件"));Avalonia.Automation.AutomationProperties.SetName(include,Localization.Text("处理此文件")+" · "+System.IO.Path.GetFileName(entry.Path));
+                Grid.SetColumn(include,textColumn);row.Children.Add(include);
             }
             var name=Ui.ComponentText(System.IO.Path.GetFileName(entry.Path));
             name.TextTrimming=TextTrimming.CharacterEllipsis;name.TextWrapping=TextWrapping.NoWrap;Localization.SetIsUserText(name,true);ToolTip.SetTip(name,entry.Path);
@@ -145,7 +160,7 @@ public sealed class ConvertWindow : Window
                 var summary=Ui.ComponentText("","caption");summary.TextTrimming=TextTrimming.CharacterEllipsis;summary.TextWrapping=TextWrapping.NoWrap;
                 summary.Bind(TextBlock.TextProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));summary.Bind(ToolTip.TipProperty,new Avalonia.Data.Binding(nameof(ConversionEntry.Summary)));details.Children.Add(summary);
             }
-            Grid.SetColumn(details,1);row.Children.Add(details);return new ListRow{Child=row};
+            Grid.SetColumn(details,textColumn+1);row.Children.Add(details);return new ListRow{Child=row};
         });
         var importActions = ToolFilePicker.ImportActions(this, async () =>
         {
@@ -158,7 +173,6 @@ public sealed class ConvertWindow : Window
         if(feature.Operation==Operation.Mux)toolbar.Children.Add(Ui.Button("选择音频来源…",async()=>
         {var picked=await Ui.Pick(this,"选择音频来源",false);if(picked.Length==0)return;if(_entries.Count==0){await Ui.Message(this,"混流","请先选择视频来源。");return;}if(_entries.Count>1)_entries[1]=new(picked[0]);else _entries.Add(new(picked[0]));}));
         var remove=Ui.Button("移除选中",()=>{foreach(var x in list.SelectedItems?.Cast<ConversionEntry>().ToArray()??[])_entries.Remove(x);});toolbar.Children.Add(remove);
-        var ordered=feature.Operation is Operation.Join or Operation.AudioMix;
         var up=Ui.Button("上移",()=>{if(list.SelectedIndex>0){var index=list.SelectedIndex;_entries.Move(index,index-1);list.SelectedIndex=index-1;}});up.IsVisible=ordered;toolbar.Children.Add(up);
         var down=Ui.Button("下移",()=>{if(list.SelectedIndex>=0 && list.SelectedIndex<_entries.Count-1){var index=list.SelectedIndex;_entries.Move(index,index+1);list.SelectedIndex=index+1;}});down.IsVisible=ordered;toolbar.Children.Add(down);
         var edit=new Button{ Classes = { "ac" },Content=feature.Id=="delogo"?"框选水印区域…":"编辑选中…"};edit.Click+=async(_,_)=>
@@ -289,6 +303,39 @@ public sealed class ConvertWindow : Window
         }
         bool AcceptPath(string path)=>!visualImages || MediaEngine.IsImage(Path.GetExtension(path).TrimStart('.').ToLowerInvariant()) || Path.GetExtension(path).Equals(".gif",StringComparison.OrdinalIgnoreCase);
         void RefreshPreview(){if(_preview is null)return;var entry=list.SelectedItem as ConversionEntry;_preview.SetSource(entry?.Path,media?entry?.Options??_options:null);}
+        void BeginReorder(ConversionEntry entry,Control grip,PointerPressedEventArgs press)
+        {
+            if(!press.GetCurrentPoint(grip).Properties.IsLeftButtonPressed)return;
+            var from=_entries.IndexOf(entry);if(from<0)return;
+            press.Pointer.Capture(grip);press.Handled=true;
+            var target=from;ListBoxItem? mark=null;
+            void MoveMark(int index)
+            {
+                if(mark is not null)mark.ClearValue(ListBoxItem.BackgroundProperty);
+                mark=list.ContainerFromIndex(index) as ListBoxItem;
+                if(mark is not null)mark.Background=grip.TryFindResource("UiAccentSoft", out var brush)?brush as IBrush:null;
+            }
+            void Track(object? _,PointerEventArgs e)
+            {
+                var point=e.GetPosition(list);
+                var next=from;
+                for(var index=0;index<_entries.Count;index++)
+                {
+                    if(list.ContainerFromIndex(index) is not Control row)continue;
+                    var top=row.TranslatePoint(default,list)?.Y??0;
+                    if(point.Y>=top+row.Bounds.Height/2)next=index;
+                }
+                if(next==target)return;target=next;MoveMark(target);
+            }
+            void Finish(object? _,PointerEventArgs e)
+            {
+                grip.PointerMoved-=Track;grip.PointerReleased-=Finish;
+                e.Pointer.Capture(null);if(mark is not null)mark.ClearValue(ListBoxItem.BackgroundProperty);
+                var index=_entries.IndexOf(entry);
+                if(index>=0&&target!=index){_entries.Move(index,target);list.SelectedIndex=target;}
+            }
+            grip.PointerMoved+=Track;grip.PointerReleased+=Finish;MoveMark(from);
+        }
         void RefreshActions()
         {
             empty.IsVisible=_entries.Count==0;
