@@ -205,6 +205,9 @@ public sealed partial class Job : Observable
     }
     private string _completionMessage = "";
     public string CompletionMessage { get => _completionMessage; set => Set(ref _completionMessage, value); }
+    /// <summary>Burned-in subtitle tasks keep the exported subtitle file next to the video so the result page shows both (UISPEC 10.17).</summary>
+    private string _transcriptionSidecar = "";
+    public string TranscriptionSidecar { get => _transcriptionSidecar; set => Set(ref _transcriptionSidecar, value); }
     private double _progress;
     public double Progress { get=>_progress; set {if(Set(ref _progress,value)) Raise(nameof(Status));} }
     private string _error = "";

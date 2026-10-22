@@ -219,7 +219,8 @@ public sealed class SubtitleTaskSession : ISubtitleTask
             },
             HasResult = _lines.Count > 0, IsPartial = result?.IsPartial ?? true,
             CanReview = sourceMatches && state is JobState.Completed or JobState.Failed or JobState.Cancelled,
-            Output = output
+            Output = output,
+            SubtitleSidecar = readDisk && _job.TranscriptionSidecar.Length > 0 && File.Exists(_job.TranscriptionSidecar) ? _job.TranscriptionSidecar : ""
         };
     }
 

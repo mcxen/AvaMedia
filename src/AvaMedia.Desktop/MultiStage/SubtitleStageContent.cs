@@ -77,13 +77,19 @@ internal sealed class SubtitleStageContent : Grid, IMultiStageToolContent
     }
 
     public Control Result => this;
+    /// <summary>Completed subtitle-only exports still review the picture, now overlaid with the produced subtitles (UISPEC 10.17).</summary>
+    public Control? ResultExtra => _resultPreview ??= new SubtitleResultView(_engine);
+    private SubtitleResultView? _resultPreview;
     public Control Output => _output;
     public IReadOnlyList<Button> LeadingActions => [_reveal];
     public IReadOnlyList<Button> TrailingActions => [_review];
     public string SourceTitle => Path.GetFileName(_task.View.SourcePath);
     public string SourceTooltip => _task.View.SourcePath;
     public IReadOnlyList<string> InputPaths => _task.View.SourcePath.Length > 0 ? [_task.View.SourcePath] : [];
-    public IReadOnlyList<string> OutputPaths => _view.Output is { Exists: true, IsFixedLocation: false, Path.Length: > 0 } output && File.Exists(output.Path) ? [output.Path] : [];
+    // Burned-in exports list both the video and the subtitle file so the result page can review each (UISPEC 10.17).
+    public IReadOnlyList<string> OutputPaths => _view.Output is { Exists: true, IsFixedLocation: false, Path.Length: > 0 } output && File.Exists(output.Path)
+        ? _view.SubtitleSidecar.Length > 0 && File.Exists(_view.SubtitleSidecar) ? [output.Path, _view.SubtitleSidecar] : [output.Path]
+        : [];
     public Task InitializeAsync() => Task.CompletedTask;
 
     private Border BuildList()
@@ -159,6 +165,7 @@ internal sealed class SubtitleStageContent : Grid, IMultiStageToolContent
         RefreshRows(view, running, done);
         RefreshPreview(view, state, done ? (_list.SelectedItem as LineRow)?.Line : null);
 
+        if (done) _resultPreview?.Update(view);
         _output.Update(view.Output, snapshot);
         _reveal.IsVisible = done && view.Output.Exists && File.Exists(view.Output.Path);
         _review.IsVisible = done && view.CanReview && _actions.Review is not null;
@@ -232,5 +239,44 @@ internal sealed class SubtitleStageContent : Grid, IMultiStageToolContent
             state == MultiStageTaskState.Completed ? Localization.Format($"{view.Lines.Count} 条中的第 {line.Number} 条") : "");
     }
 
-    public void Dispose() => _preview.Dispose();
+    public void Dispose() { _preview.Dispose(); _resultPreview?.Dispose(); }
+
+    /// <summary>Result-page preview: the source picture with a produced subtitle line overlaid at its position.</summary>
+    private sealed class SubtitleResultView : Grid, IDisposable
+    {
+        private readonly IMediaEngine _engine;
+        private readonly Border _subtitle = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new(16, 0, 16, 12), Padding = new(8, 3), CornerRadius = new(5), IsVisible = false };
+        private readonly TextBlock _subtitleText = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxLines = 2 };
+        private readonly MsPreviewCard _preview;
+
+        public SubtitleResultView(IMediaEngine engine)
+        {
+            _engine = engine;
+            MsUi.Brush(_subtitle, Border.BackgroundProperty, "UiMediaOverlay");
+            MsUi.Brush(_subtitleText, TextBlock.ForegroundProperty, "UiMediaText");
+            _subtitle.Child = _subtitleText;
+            _preview = new MsPreviewCard(_subtitle) { FollowSourceAspect = true, MaxWidth = 760 };
+            Children.Add(_preview);
+        }
+
+        public void Update(SubtitleTaskView view)
+        {
+            var line = view.Lines.FirstOrDefault();
+            if (view.Info is not { HasVideo: true } info)
+            {
+                _preview.IsVisible = false;
+                return;
+            }
+            _preview.IsVisible = true;
+            _subtitle.IsVisible = line is not null;
+            _subtitleText.Text = line?.Text ?? "";
+            _preview.ShowFrame(_engine, view.SourcePath, line is null ? view.RangeStart : (line.Start + line.End) / 2, info.VideoStreamIndex);
+            _preview.SetChips("");
+            _preview.SetCaption("字幕预览", line is null ? MsUi.MediaDetail(info)
+                : Localization.Format($"第 {line.Number} 条 · {PersonTaskView.Time(line.Start, 1)} — {PersonTaskView.Time(line.End, 1)}"));
+        }
+
+        public void Dispose() => _preview.Dispose();
+    }
 }

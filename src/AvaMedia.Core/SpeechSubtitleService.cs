@@ -397,6 +397,14 @@ public sealed class SpeechSubtitleService(IMediaEngine engine, SpeechModelInstal
                     progress(75 + percent * .25);
                 }, ct).ConfigureAwait(false);
                 job.Log = conversion.Log;
+                // Burned-in video keeps a companion subtitle file so the result page shows both the video and the subtitles (UISPEC 10.17).
+                if (!speech.RecognitionOnly)
+                {
+                    var sidecar = MediaEngine.UniqueOutput(Path.GetDirectoryName(Path.GetFullPath(job.Output))!,
+                        Path.GetFileNameWithoutExtension(job.Output), "srt", [job.Output, output, .. job.Inputs]);
+                    await File.WriteAllTextAsync(sidecar, SpeechSubtitles.Srt(cues), new UTF8Encoding(false), ct).ConfigureAwait(false);
+                    job.TranscriptionSidecar = sidecar;
+                }
             }
             ct.ThrowIfCancellationRequested();
             File.Move(output, job.Output);

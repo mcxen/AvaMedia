@@ -78,6 +78,8 @@ public sealed record SubtitleTaskView
     /// <summary>Lines can be reviewed and edited in the subtitle review window.</summary>
     public bool CanReview { get; init; }
     public TaskOutputView Output { get; init; } = new();
+    /// <summary>Burned-in exports keep the subtitle file next to the video; the result page lists it alongside (UISPEC 10.17).</summary>
+    public string SubtitleSidecar { get; init; } = "";
 }
 
 public interface ISubtitleTask : IMultiStageTask { SubtitleTaskView View { get; } }

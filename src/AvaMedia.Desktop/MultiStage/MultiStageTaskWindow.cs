@@ -26,6 +26,8 @@ internal interface IMultiStageToolContent : IDisposable
     IReadOnlyList<string> InputPaths { get; }
     /// <summary>Produced files or folders that exist; the window offers them as drag chips only once the task completed.</summary>
     IReadOnlyList<string> OutputPaths { get; }
+    /// <summary>Optional tool-owned preview shown above the file chips on the result page (e.g. subtitles over the picture, UISPEC 10.17).</summary>
+    Control? ResultExtra => null;
     Task InitializeAsync();
     /// <summary>Refresh the slot; returns header detail, section note and runtime/plan summaries for the shell.</summary>
     MultiStageContentState Update(MultiStageTaskSnapshot snapshot);
@@ -110,7 +112,7 @@ internal partial class MultiStageTaskWindow : TaskLifecycleWindow
         _shell.ProcessingContent.Margin = new Thickness(0);
         var actions = _shell.FooterActions.Children.ToArray(); _shell.FooterActions.Children.Clear();
         ProcessingPage = new("process", () => _shell.ProcessingContent) { LeadingContent = _pageOutput, AdditionalActions = actions };
-        _resultView = new TaskResultView(engine);
+        _resultView = new TaskResultView(engine) { Extra = content.ResultExtra };
         ResultPage = new("done", () => _resultView) { SecondaryAction = new("关闭", () => { Close(); return Task.CompletedTask; }) };
         ViewedPageChanged += (_, _) => { RefreshResult(); if (_snapshot is { } snapshot) RefreshHeader(snapshot); };
         SetLifecycle(new ProcessingTaskPages(task), [ProcessingPage, ResultPage]);
