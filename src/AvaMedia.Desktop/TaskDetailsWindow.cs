@@ -40,6 +40,13 @@ public sealed partial class TaskDetailsWindow : Window
     private readonly Button _outputButton;
     private readonly Button _sourceButton;
     private readonly Button _taskButton;
+    private readonly Button _playButton;
+    private readonly IMediaEngine? _engine;
+    private readonly MultiStage.MsPreviewCard _preview = new() { FollowSourceAspect = true, MaxWidth = 760, IsVisible = false };
+    private readonly CancellationTokenSource _previewLifetime = new();
+    private MultiStage.MsFileChip? _outputCard;
+    private string _previewPath = "";
+    private bool _playable;
     private readonly Control[] _pages;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _logTimer = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -51,9 +58,9 @@ public sealed partial class TaskDetailsWindow : Window
     private string _logText = "";
 
     public TaskDetailsWindow(Job job, Func<Task> run, Func<bool> canRun, Func<Task> edit,
-        Func<bool> canEdit, Func<Task>? viewTask = null)
+        Func<bool> canEdit, IMediaEngine? engine = null, Func<Task>? viewTask = null)
     {
-        _job = job; _run = run; _canRun = canRun; _edit = edit; _canEdit = canEdit; _viewTask = viewTask;
+        _job = job; _run = run; _canRun = canRun; _edit = edit; _canEdit = canEdit; _viewTask = viewTask; _engine = engine;
         Title = Localization.Text("任务详情"); Width = 860; Height = 700; MinWidth = 600; MinHeight = 480;
         Localization.SetIsUserText(_name, true);
         Localization.SetIsUserText(_log, true);
@@ -101,8 +108,9 @@ public sealed partial class TaskDetailsWindow : Window
         _editButton = ActionButton("编辑任务…", _edit);
         _sourceButton = ActionButton("打开来源", () => OpenAsync(_job.Inputs.FirstOrDefault(path => File.Exists(path) || Directory.Exists(path))));
         _outputButton = ActionButton("打开输出文件", () => OpenAsync(_job.UserOutput));
+        _playButton = ActionButton("播放输出", PlayOutputAsync);
         _taskButton = ActionButton("打开任务界面…", () => _viewTask?.Invoke() ?? Task.CompletedTask);
-        foreach (var button in new[] { _sourceButton, _outputButton, _taskButton, _editButton, _runButton, Ui.DialogButton("关闭", Close) })
+        foreach (var button in new[] { _sourceButton, _playButton, _outputButton, _taskButton, _editButton, _runButton, Ui.DialogButton("关闭", Close) })
             actions.Children.Add(button);
         footer.Children.Add(_actionStatus); footer.Children.Add(actions);
         root.Children.Add(footer); Grid.SetRow(footer, 3);
@@ -125,7 +133,8 @@ public sealed partial class TaskDetailsWindow : Window
         };
         Closed += (_, _) =>
         {
-            _closed = true; _logTimer.Stop(); _lifetime.Cancel();
+            _closed = true; _logTimer.Stop(); _lifetime.Cancel(); _previewLifetime.Cancel();
+            _preview.Dispose(); _previewLifetime.Dispose();
             _job.PropertyChanged -= JobChanged; Localization.Changed -= LanguageChanged;
         };
         Refresh();
@@ -177,7 +186,7 @@ public sealed partial class TaskDetailsWindow : Window
         { JobState.Failed => "重试任务", JobState.Completed => "重新执行", JobState.Paused or JobState.Cancelled => "继续任务", _ => "开始任务" });
         _editButton.IsVisible = _canEdit(); _editButton.IsEnabled = !_acting;
         _sourceButton.IsEnabled = _job.Inputs.Any(path => File.Exists(path) || Directory.Exists(path));
-        _outputButton.IsVisible = HasOutput; _taskButton.IsVisible = _viewTask is not null;
+        _outputButton.IsVisible = HasOutput; _playButton.IsVisible = HasOutput && _playable; _taskButton.IsVisible = _viewTask is not null;
     }
     private void Refresh()
     {
@@ -185,6 +194,8 @@ public sealed partial class TaskDetailsWindow : Window
         _name.Text = _job.Name; ToolTip.SetTip(_name, _job.Source); RefreshStatus();
         _result.Children.Clear(); _files.Children.Clear(); _parameters.Children.Clear();
         _result.Children.Add(Ui.ComponentText("处理结果", "heading"));
+        RefreshOutputPreview();
+        AddOutputCard();
         var message = Unchanged ? _job.CompletionMessage : _job.State switch
         {
             JobState.Failed => string.IsNullOrWhiteSpace(_job.Error) ? Localization.Text("任务执行失败，请查看处理日志。") : _job.Error,
@@ -250,10 +261,67 @@ public sealed partial class TaskDetailsWindow : Window
             _acting = true; button.IsEnabled = false; _actionStatus.Text = "";
             try { await action(); }
             catch (Exception error) { _actionStatus.Text = error.Message; }
-            finally { _acting = false; button.IsEnabled = true; Refresh(); }
+            finally
+            {
+                _acting = false; button.IsEnabled = true;
+                if (ReferenceEquals(button, _playButton)) RefreshStatus(); else Refresh();
+            }
         };
         return button;
     }
+    /// <summary>Finished video and image outputs are shown here, the same way a completed video merge is reviewed.</summary>
+    private void RefreshOutputPreview()
+    {
+        var path = HasOutput && File.Exists(_job.UserOutput) ? _job.UserOutput : "";
+        var extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+        // Audio, documents, subtitles and archives review as file cards instead of an empty preview frame.
+        var visual = path.Length > 0 && (VideoFormats.IsVideo(path) || MediaEngine.IsImage(extension));
+        _playable = path.Length > 0 && (VideoFormats.IsVideo(path) || MediaEngine.IsAudio(extension));
+        if (!visual || _engine is null)
+        {
+            _preview.IsVisible = false; _previewPath = "";
+            return;
+        }
+        if (!_result.Children.Contains(_preview)) _result.Children.Add(_preview);
+        _preview.IsVisible = true;
+        if (_previewPath == path) return;
+        _previewPath = path;
+        _preview.SetCaption(Path.GetFileName(path), "");
+        _ = LoadOutputPreviewAsync(path, extension);
+    }
+
+    /// <summary>Every finished task shows its produced file: video and image as a preview, the rest as a draggable file card.</summary>
+    private void AddOutputCard()
+    {
+        if (!HasOutput || _preview.IsVisible) return;
+        var card = _outputCard ??= new MultiStage.MsFileChip(_engine);
+        card.SetFile(_job.UserOutput);
+        if (!_result.Children.Contains(card)) _result.Children.Add(card);
+    }
+
+    private async Task LoadOutputPreviewAsync(string path, string extension)
+    {
+        try
+        {
+            if (_engine is null) return;
+            var info = await _engine.Probe(path, _previewLifetime.Token);
+            if (_closed || _previewPath != path) return;
+            _preview.SetCaption(Path.GetFileName(path), MultiStage.MsUi.MediaDetail(info, MultiStage.MsFileChip.FileSize(path)));
+            if (info.Width <= 0 || info.Height <= 0) return;
+            if (MediaEngine.IsImage(extension)) _preview.ShowFile(path);
+            else _preview.ShowFrame(_engine, path, 0);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { AppDiagnostics.Record("Task output preview", error); }
+    }
+
+    private Task PlayOutputAsync()
+    {
+        if (!_playable || _engine is null || !File.Exists(_job.UserOutput)) return Task.CompletedTask;
+        PlayerWindow.GetOrCreate(_engine, [_job.UserOutput]).ShowForPlayback(this);
+        return Task.CompletedTask;
+    }
+
     private static Task OpenAsync(string? path)
     {
         if (Directory.Exists(path)) PlatformServices.OpenFolder(path!);

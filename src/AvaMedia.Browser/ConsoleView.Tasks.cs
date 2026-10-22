@@ -413,6 +413,8 @@ public sealed partial class ConsoleView
             var finished = task.Text("state") is "Completed" or "Failed" or "Cancelled";
             Control output = finished && !payload.Flag("outputIsDirectory") ? FileActions(id, task.Text("output"), "output", 0) : PathLabel(task.Text("output"));
             facts.Children.Add(Fact("输出", output));
+            if (finished && !payload.Flag("outputIsDirectory") && VisualOutput(task.Text("output")))
+                facts.Children.Add(OutputPreview(id, task.Text("output")));
             if (finished && payload.Flag("outputIsDirectory")) facts.Children.Add(Fact("", Action("浏览输出目录", async () =>
             { var folder = await _source.ResolveAsync(task.Text("output"), CancellationToken.None); if (folder is { IsFolder: true } directory) { await _files.NavigateAsync(directory); _workspaceTabs.SelectedIndex = 0; _tabs.SelectedIndex = 0; } }, "folder-closed")));
         }
@@ -530,6 +532,56 @@ public sealed partial class ConsoleView
             if (_detailId == id && _taskData.TryGetValue(id, out var task)) UpdateDetailHeader(task);
         }
         catch (Exception) { }
+    }
+    /// <summary>Finished video and image outputs are reviewed in place, the same way a completed merge is checked.</summary>
+    private static bool VisualOutput(string path)
+    {
+        var icon = Ui.FileIcon(path, false);
+        return icon is "video" or "image-file" or "audio-lines";
+    }
+    private Control OutputPreview(string id, string path)
+    {
+        var frame = new Border
+        {
+            Height = 180, CornerRadius = new(9), ClipToBounds = true, Background = Brushes.Black,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var kind = Ui.FileIcon(path, false);
+        var playable = kind is "video" or "audio-lines";
+        if (kind == "audio-lines") frame.IsVisible = false;
+        var open = Action(playable ? "播放输出" : "查看输出", () =>
+        {
+            BrowserHost.Open($"/web/tasks/{Uri.EscapeDataString(id)}/file?source=output&index=0");
+            return Task.CompletedTask;
+        }, playable ? "circle-play" : "eye");
+        var stack = new StackPanel { Spacing = 8 };
+        stack.Children.Add(frame); stack.Children.Add(open);
+        var version = _detailVersion;
+        if (kind != "audio-lines") _ = LoadOutputPreview(frame, path, version);
+        return stack;
+    }
+    private async Task LoadOutputPreview(Border frame, string path, int version)
+    {
+        try
+        {
+            var (image, metadata) = await RemotePreview.Read(path, 0, 640, 0, 0, CancellationToken.None);
+            if (version != _detailVersion) return;
+            using var stream = new MemoryStream(image);
+            var bitmap = new Bitmap(stream);
+            frame.Child = new Image { Source = bitmap, Stretch = Stretch.Uniform };
+            var info = metadata["info"];
+            var width = info?["width"]?.GetValue<int>() ?? 0;
+            var height = info?["height"]?.GetValue<int>() ?? 0;
+            var duration = info?["duration"]?.GetValue<double>() ?? 0;
+            var codec = info.Text("videoCodec");
+            var parts = new List<string>();
+            if (width > 0 && height > 0) parts.Add($"{width}×{height}");
+            if (codec.Length > 0) parts.Add(codec.ToUpperInvariant());
+            if (duration > 0) parts.Add(ClipTimeline.Short(duration));
+            if (parts.Count > 0 && version == _detailVersion && frame.Parent is StackPanel stack)
+                stack.Children.Insert(1, Ui.Text(string.Join(" · ", parts), "caption", raw: true));
+        }
+        catch (Exception) { if (version == _detailVersion) frame.Child = Ui.Text("无法读取输出画面", "caption"); }
     }
     private Control FileActions(string id, string path, string source, int index)
     {

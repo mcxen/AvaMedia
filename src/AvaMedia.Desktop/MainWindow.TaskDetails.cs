@@ -22,7 +22,7 @@ public partial class MainWindow
         }
         var window = new TaskDetailsWindow(job, () => RequestTaskRunAsync(job),
             () => job.State == JobState.Waiting ? CanStartTask(job) : CanContinueTask(job) || CanRequeueTask(job),
-            () => EditJob(job), () => CanEditTask(job),
+            () => EditJob(job), () => CanEditTask(job), Engine,
             job.Options.VlRename is not null ? () => OpenExclusiveRenamerAsync(this, job) : null);
         _taskDetailsWindows[job.Id] = window;
         window.Closed += (_, _) => _taskDetailsWindows.Remove(job.Id);
