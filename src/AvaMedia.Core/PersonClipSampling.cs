@@ -64,7 +64,7 @@ internal static class PersonClipFrameSource
             // A synthetic negative sample separates ranges without decoding excluded video.
             if (interval.Start > lastEnd) yield return new(lastEnd, null);
             List<string> args = ["-v", "error", "-nostdin", "-threads",
-                (engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 16) : 1).ToString()];
+                (engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 32) : 1).ToString()];
             if (interval.Start > 0) args.AddRange(["-ss", MediaEngine.Number(interval.Start)]);
             args.AddRange(["-i", path, "-t", MediaEngine.Number(interval.End - interval.Start), "-map", $"0:v:{info.VideoStreamIndex}",
                 "-an", "-sn", "-vf", $"setpts=PTS-STARTPTS,fps={MediaEngine.Number(options.FramesPerSecond)}:start_time=0:eof_action=pass,{Filter(size)}",

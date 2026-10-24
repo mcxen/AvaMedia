@@ -100,7 +100,7 @@ public partial class VideoSlimmingWindow : Window
         {
             await AddFilesAsync(files);
             if (initial?.Analysis is { } analysis && _entries.Count == 1 && analysis.Matches(_entries[0].Path, options,
-                engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 16) : 1))
+                engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 32) : 1))
             { _entries[0].Analysis = analysis; Refresh(); }
         };
         Closed += (_, _) => { _closed = true; _preview.Dispose(); _lifetime.Cancel(); _analysisCancellation?.Cancel(); Localization.Changed -= LanguageChanged; };

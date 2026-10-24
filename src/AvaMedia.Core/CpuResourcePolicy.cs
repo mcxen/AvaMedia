@@ -26,7 +26,7 @@ internal static class CpuResourcePolicy
     {
         settings ??= Volatile.Read(ref _settings);
         if (!settings.MultiThread) return 1;
-        var maximum = Math.Min(Math.Clamp(requested, 1, 16), Math.Clamp(settings.EffectiveCpuThreads, 1, 16));
+        var maximum = Math.Min(Math.Clamp(requested, 1, 32), Math.Clamp(settings.EffectiveCpuThreads, 1, 32));
         if (settings.CpuReservePercent == 0) return maximum;
         var workers = Math.Max(1, (int)Math.Floor(Environment.ProcessorCount * (100 - Math.Clamp(settings.CpuReservePercent, 0, 80)) / 100d));
         return Math.Min(maximum, workers);
@@ -69,7 +69,7 @@ internal static class CpuResourcePolicy
         var source = arguments.ToArray();
         if (!Enabled || !Path.GetFileNameWithoutExtension(executable).Equals("ffmpeg", StringComparison.OrdinalIgnoreCase)
             || !source.Contains("-i")) return source;
-        var requestedThreads = 16;
+        var requestedThreads = 32;
         for (var index = 0; index + 1 < source.Length; index++)
             if ((source[index] == "-threads" || source[index].StartsWith("-threads:", StringComparison.Ordinal))
                 && int.TryParse(source[index + 1], out var requested) && requested > 0)
@@ -91,7 +91,7 @@ internal static class CpuResourcePolicy
             { result.Add("1"); index++; }
             else if (index + 1 < source.Length && (option == "-threads" || option.StartsWith("-threads:", StringComparison.Ordinal))
                 && int.TryParse(source[index + 1], out var requested))
-            { result.Add((requested <= 0 ? Threads(16) : Threads(requested)).ToString(CultureInfo.InvariantCulture)); index++; }
+            { result.Add((requested <= 0 ? Threads(32) : Threads(requested)).ToString(CultureInfo.InvariantCulture)); index++; }
         }
         return result;
     }

@@ -152,7 +152,7 @@ public sealed partial class SettingsWindow : Window
         OutputInput.Text = source.OutputFolder; FfmpegInput.Text = source.FFmpegPath; FfprobeInput.Text = source.FFprobePath; YtdlpInput.Text = source.YtDlpPath;
         AutoGpuInput.IsChecked = source.AutoDetectGpu;
         ThreadsInput.ItemsSource = ThreadChoices.Select(value => value == 0 ? Localization.Format($"自动（{source.EffectiveCpuThreads}）") : value == 1 ? Localization.Text("1（单线程）") : value.ToString()).ToArray();
-        ThreadsInput.SelectedIndex = Array.IndexOf(ThreadChoices, Math.Clamp(source.ThreadSelection, 0, 16));
+        ThreadsInput.SelectedIndex = Array.IndexOf(ThreadChoices, Math.Clamp(source.ThreadSelection, 0, 32));
         CpuReserveInput.Value = Math.Clamp(source.CpuReservePercent, 0, 80);
         JpegQualityInput.Value = Math.Clamp(source.JpegQuality, 1, 100); WebpQualityInput.Value = Math.Clamp(source.WebpQuality, 1, 100);
         NotifyInput.IsChecked = source.NotifyComplete; ReducedMotionInput.IsChecked = source.ReduceMotion;

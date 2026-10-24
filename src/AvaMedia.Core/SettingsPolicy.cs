@@ -14,7 +14,7 @@ public static class SettingsPolicy
             throw new ArgumentException("预热比例须为 1 到 100，选素材后的比例不能低于初始比例，增加用时须为 1 到 30 秒。");
         if (string.IsNullOrWhiteSpace(settings.OutputFolder)) throw new ArgumentException("请选择输出目录。");
         _ = Path.GetFullPath(settings.OutputFolder);
-        if (settings.CpuThreads is < 1 or > 16) throw new ArgumentException("多线程数量必须在 1 到 16 之间。");
+        if (settings.CpuThreads is < 1 or > 32) throw new ArgumentException("多线程数量必须在 1 到 32 之间。");
         if (settings.CpuReservePercent is < 0 or > 80) throw new ArgumentException("CPU 预留比例必须在 0 到 80 之间。");
         if (settings.JpegQuality is < 1 or > 100 || settings.WebpQuality is < 1 or > 100)
             throw new ArgumentException("JPG / WebP Quality 必须在 1 到 100 之间。");
@@ -26,7 +26,7 @@ public static class SettingsPolicy
     {
         var options = source.Clone();
         if (!settings.MultiThread) options.Threads = 1;
-        else if (options.Threads == 0) options.Threads = Math.Clamp(settings.EffectiveCpuThreads, 1, 16);
+        else if (options.Threads == 0) options.Threads = Math.Clamp(settings.EffectiveCpuThreads, 1, 32);
         options.Threads = CpuResourcePolicy.Threads(options.Threads, settings);
         // Keep legacy explicitly edited quality values; the original default now follows app settings.
         if (options.ImageQuality is null && options.Quality == 23)

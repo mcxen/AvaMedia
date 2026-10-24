@@ -13,6 +13,25 @@ public sealed class MediaEngine : IMediaEngine
     private readonly Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>> _hardwareTest;
     public MediaEngine(AppSettings settings,Func<string,CancellationToken,Task<IReadOnlyList<HardwareEncoderResult>>>? hardwareTest=null)
     {Settings=settings;ComputeSettings.Configure(settings);CpuResourcePolicy.Configure(settings);_hardwareTest=hardwareTest??((path,token)=>HardwareAcceleration.TestAsync(path,token,refresh:false));}
+    private static readonly SemaphoreSlim EncoderListingGate=new(1);
+    private static readonly Dictionary<string,string> EncoderListings=new(StringComparer.Ordinal);
+    // The encoder listing only changes with the ffmpeg binary; share it across queued jobs.
+    private async Task<string> EncoderListingAsync(CancellationToken ct)
+    {
+        var tool=FFmpeg;
+        lock(EncoderListings)if(EncoderListings.TryGetValue(tool,out var cached))return cached;
+        await EncoderListingGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            lock(EncoderListings)if(EncoderListings.TryGetValue(tool,out var cached))return cached;
+            var listing=await ProcessRunner.Run(tool,["-hide_banner","-encoders"],ct).ConfigureAwait(false);
+            if(listing.ExitCode!=0)throw new InvalidOperationException("无法读取视频编码器。"+listing.Error);
+            var text=listing.Output+listing.Error;
+            lock(EncoderListings)EncoderListings[tool]=text;
+            return text;
+        }
+        finally{EncoderListingGate.Release();}
+    }
     public string FFmpeg => Resolve(Settings.FFmpegPath,"ffmpeg");
     public string FFprobe => Resolve(Settings.FFprobePath,"ffprobe");
     public static string Number(double n) => n.ToString("0.######",CultureInfo.InvariantCulture);
@@ -291,7 +310,7 @@ public sealed class MediaEngine : IMediaEngine
         SourceVideoExport.ValidateOptions(o);
         if(!o.CopyStreams && HardwareTranscoding.Encoder(o.VideoCodec) is {} hardwareEncoder && !HardwareTranscoding.Compatible(o.Format,hardwareEncoder.Format))
             throw new ArgumentException("所选硬件编码器与输出格式不兼容，请使用自动编码或选择兼容格式。");
-        if(o.Threads is <0 or >16)throw new ArgumentException("编码线程数必须在 0 到 16 之间。");
+        if(o.Threads is <0 or >32)throw new ArgumentException("编码线程数必须在 0 到 32 之间。");
         if(o.VoiceEnhancementStrength is <1 or >100)throw new ArgumentException("人声增强强度必须在 1 到 100 之间。");
         if(o.ImageQuality is <1 or >100)throw new ArgumentException("图片质量必须在 1 到 100 之间。");
         if(o.Quality is <1 or >63 || o.Rotation is not (0 or 90 or 180 or 270))throw new ArgumentException("参数超出允许范围。");
@@ -483,12 +502,7 @@ public sealed class MediaEngine : IMediaEngine
             }
         }
         string? sourceEncoderListing=null;
-        if(effective.PreserveSourceAttributes)
-        {
-            var listing=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
-            if(listing.ExitCode!=0)throw new InvalidOperationException("无法读取原编码所需的编码器。"+listing.Error);
-            sourceEncoderListing=listing.Output+listing.Error;
-        }
+        if(effective.PreserveSourceAttributes)sourceEncoderListing=await EncoderListingAsync(ct);
         var effectiveJob=new Job{FeatureId=job.FeatureId,Inputs=job.Inputs,InputOptions=job.InputOptions?.Select(option=>option.Clone()).ToList(),Options=effective,Output=job.Output,Duration=job.Duration};
         using var subtitlePositioning=await SubtitlePositioning.PrepareAsync(this,effectiveJob,ct).ConfigureAwait(false);
         var hardwareLog=new StringBuilder();
@@ -567,16 +581,9 @@ public sealed class MediaEngine : IMediaEngine
             if(genericFormat is not null || HardwareTranscoding.Backend(effective.VideoCodec) is not null)
                 effective.VideoCodec=FfmpegBackend.SoftwareEncoder(requestedCodec);
             if(effective.VideoCodec=="自动" && effective.VideoRateMode==VideoRateMode.Source && effective.VideoCompression is null && VideoFormats.OriginalOutputExtensions.Contains(effective.Format))
-            {
-                var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
-                if(encoders.ExitCode!=0)throw new InvalidOperationException("无法读取视频编码器。"+encoders.Error);
-                effective.VideoCodec=VideoEncoding.SoftwareEncoder(effective.Format,infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"",encoders.Output+encoders.Error);
-            }
+                effective.VideoCodec=VideoEncoding.SoftwareEncoder(effective.Format,infos.FirstOrDefault(info=>info.HasVideo)?.VideoCodec??"",await EncoderListingAsync(ct));
             if(effective.VideoCompression is {} fallbackCompression)
-            {
-                var encoders=await ProcessRunner.Run(FFmpeg,["-hide_banner","-encoders"],ct);
-                effective.VideoCodec=VideoCompression.SoftwareEncoder(fallbackCompression.Codec,encoders.Output+encoders.Error,effective.Width,effective.Height);
-            }
+                effective.VideoCodec=VideoCompression.SoftwareEncoder(fallbackCompression.Codec,await EncoderListingAsync(ct),effective.Width,effective.Height);
             job.ProgressDetail=effective.VideoCodec=="自动"?"软件自动编码":"软件编码 · "+effective.VideoCodec;
             if(effective.PreserveSourceAttributes)hardwareLog.AppendLine("使用软件编码 "+effective.VideoCodec+"。");
             // Keep incomplete single-file exports private, including cancellation and software

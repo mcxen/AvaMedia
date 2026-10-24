@@ -303,7 +303,7 @@ public sealed partial class VideoSlimming(MediaEngine engine)
         return bestTime;
     }
 
-    private int Threads() => engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 16) : 1;
+    private int Threads() => engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 32) : 1;
     private async Task<double> EstimateAudioBytesAsync(string input, MediaInfo source, CancellationToken ct)
     {
         using var document = JsonDocument.Parse(source.RawJson);

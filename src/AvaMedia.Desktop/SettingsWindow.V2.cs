@@ -12,7 +12,7 @@ namespace AvaMedia.Desktop;
 public sealed partial class SettingsWindow
 {
     // Keep every legacy integer available, with the demo's common values first.
-    private static readonly int[] ThreadChoices = [0, 1, 2, 4, 8, 12, 16, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15];
+    private static readonly int[] ThreadChoices = [0, 1, 2, 4, 8, 12, 16, 20, 24, 28, 32, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15];
     private static readonly string[] AccentChoices = ["Blue", "Purple", "Pink", "Red", "Orange", "Yellow", "Green", "Gray"];
     private static readonly string[] AccentNames = ["蓝色", "紫色", "粉色", "红色", "橙色", "黄色", "绿色", "灰色"];
     private string _accentColor = "Blue";

@@ -164,7 +164,13 @@ public static class VideoCompression
     public static IReadOnlyList<string> EncodingArguments(string codec, ConversionOptions options)
     {
         var spec = Effective(options.VideoCompression ?? new());
-        var speed = spec.Speed switch { VideoEncodingSpeed.Fast => "fast", VideoEncodingSpeed.Slow => "slow", _ => "medium" };
+        // In size-budget modes the bitrate pins the output size, so the software preset only
+        // trades encode time against quality at that size: run one step faster to cut waiting.
+        // Quality (CRF) mode keeps the conservative presets because there the preset sets the
+        // size-for-quality trade-off itself.
+        var speed = UsesQuality(spec.Mode)
+            ? spec.Speed switch { VideoEncodingSpeed.Fast => "fast", VideoEncodingSpeed.Slow => "slow", _ => "medium" }
+            : spec.Speed switch { VideoEncodingSpeed.Fast => "faster", _ => "fast" };
         List<string> arguments = [];
         if (codec is "libx264" or "libx265" || codec.EndsWith("_qsv", StringComparison.Ordinal))
             arguments.AddRange(["-preset", speed]);

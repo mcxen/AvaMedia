@@ -25,7 +25,7 @@ internal sealed record PersonBoundaryFrames(double Start, double Step, byte[][] 
         for (var index = 0; index < count; index++) filter.Append($"[f{index}]");
         filter.Append($"concat=n={count}:v=1:a=0,setpts=N/(30*TB)[frames]");
         List<string> args = ["-v", "error", "-nostdin", "-filter_complex_threads", "1", "-threads",
-            (engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 16) : 1).ToString(),
+            (engine.Settings.MultiThread ? Math.Clamp(engine.Settings.CpuThreads, 1, 32) : 1).ToString(),
             "-ss", MediaEngine.Number(start), "-t", MediaEngine.Number(width + .2), "-i", path,
             "-filter_complex", filter.ToString(), "-map", "[frames]", "-an", "-sn", "-frames:v", count.ToString(),
             "-fps_mode", "passthrough", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"];

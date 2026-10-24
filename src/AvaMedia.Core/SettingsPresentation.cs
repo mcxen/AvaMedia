@@ -10,12 +10,12 @@ public sealed partial class AppSettings
     public string AccentColor { get; set; } = "Blue";
     public DateTimeOffset? LastUpdateCheck { get; set; }
     [JsonIgnore] public int ThreadSelection => !MultiThread ? 1 : AutomaticThreads ? 0 : CpuThreads;
-    [JsonIgnore] public int EffectiveCpuThreads => AutomaticThreads ? Math.Clamp(Environment.ProcessorCount, 1, 16) : CpuThreads;
+    [JsonIgnore] public int EffectiveCpuThreads => AutomaticThreads ? Math.Clamp(Environment.ProcessorCount, 1, 32) : CpuThreads;
     [JsonIgnore] public int UpdateMode => AutoUpdate || SilentUpdate ? 2 : CheckForUpdates ? 1 : 0;
 
     public void SetThreadSelection(int threads)
     {
-        if (threads is < 0 or > 16) throw new ArgumentOutOfRangeException(nameof(threads));
+        if (threads is < 0 or > 32) throw new ArgumentOutOfRangeException(nameof(threads));
         AutomaticThreads = threads == 0; MultiThread = threads != 1;
         CpuThreads = threads == 0 ? EffectiveCpuThreads : threads;
     }
