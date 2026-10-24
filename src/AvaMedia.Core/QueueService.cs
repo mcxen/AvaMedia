@@ -55,7 +55,11 @@ public sealed class QueueService(IJobExecutor engine, TimeProvider? timeProvider
                     {
                         // Start every requested task unless it conflicts with a file mutation.
                         // Shared resources coordinate their own use inside the executor.
-                        var job = _pending.FirstOrDefault(candidate => !FilesReserved(candidate) && !MutationConflict(candidate));
+                        // Small machines additionally admit heavy encodes only up to their
+                        // capacity; paused ones release their slot so waiting work can proceed.
+                        var heavyActive = _active.Count(pair => Workload.EncodingHeavy(pair.Key) && !pair.Value.Control.IsPaused);
+                        var job = _pending.FirstOrDefault(candidate => !FilesReserved(candidate) && !MutationConflict(candidate)
+                            && (heavyActive < MachineProfile.HeavyJobCapacity || !Workload.EncodingHeavy(candidate)));
                         if (job is null) break;
                         _pending.Remove(job);
                         var execution = new Execution(job, session.Token);

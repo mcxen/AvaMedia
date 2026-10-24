@@ -58,7 +58,8 @@ internal static class CpuResourcePolicy
 
     internal static void LowerWorkerPriority(Process process)
     {
-        if (!Enabled) return;
+        // Small systems get a responsive UI and player without requiring a reserve setting.
+        if (!Enabled && !MachineProfile.SmallSystem) return;
         try { process.PriorityClass = ProcessPriorityClass.BelowNormal; }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
         { Trace.TraceInformation("Worker process priority: {0}", error.Message); }
